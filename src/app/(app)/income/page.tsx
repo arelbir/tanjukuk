@@ -1,0 +1,215 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Label } from '@/components/ui/label'
+import { FormDrawer, useFormDrawer } from '@/components/form-drawer'
+import { FormFieldSelect, FormFieldSelectWithId } from '@/components/form-field-select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from 'sonner'
+import { Plus, Search } from 'lucide-react'
+import { PAYMENT_STATUS_MAPPING, getFieldLabel } from '@/types/mappings'
+
+interface Income {
+  id: string
+  record_date: string
+  amount: number
+  currency: string
+  payment_status: string
+  client?: { name: string }
+  category?: { label: string }
+}
+
+interface FormData {
+  client_id: string
+  category_id: string
+  record_date: string
+  amount: string
+  payment_status: string
+  description: string
+}
+
+export default function IncomePage() {
+  const [incomes, setIncomes] = useState<Income[]>([])
+  const [clients, setClients] = useState<{id: string, name: string}[]>([])
+  const [categories, setCategories] = useState<{id: string, label: string}[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [saving, setSaving] = useState(false)
+  const supabase = createClient()
+
+  const drawer = useFormDrawer<FormData>({
+    client_id: '', category_id: '', record_date: new Date().toISOString().split('T')[0],
+    amount: '', payment_status: 'paid', description: ''
+  })
+
+  useEffect(() => {
+    async function loadData() {
+      let query = supabase.from('income_records')
+        .select(`*, client:clients(name), category:lookup_values!income_records_category_id_fkey(label)`)
+        .order('record_date', { ascending: false })
+      if (search) query = query.or(`description.ilike.%${search}%,client.name.ilike.%${search}%`)
+      
+      const [incomesRes, clientsRes, catsRes] = await Promise.all([
+        query,
+        supabase.from('clients').select('id, name'),
+        supabase.from('lookup_values').select('id, label').eq('group_key', 'income_category').eq('is_active', true).order('sort_order')
+      ])
+      
+      setIncomes(incomesRes.data || [])
+      setClients(clientsRes.data || [])
+      setCategories(catsRes.data || [])
+      setLoading(false)
+    }
+    loadData()
+  }, [supabase, search])
+
+  const handleSubmit = async () => {
+    setSaving(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('income_records').insert({
+        client_id: drawer.values.client_id || null,
+        recorded_by: user?.id,
+        category_id: drawer.values.category_id,
+        record_date: drawer.values.record_date,
+        amount: parseFloat(drawer.values.amount),
+        payment_status: drawer.values.payment_status,
+        description: drawer.values.description || null
+      })
+      if (error) throw error
+      toast.success('Gelir eklendi!')
+      drawer.close()
+      const { data } = await supabase.from('income_records').select(`*, client:clients(name), category:lookup_values!income_records_category_id_fkey(label)`).order('record_date', { ascending: false })
+      setIncomes(data || [])
+    } catch (error: unknown) {
+      const err = error as { message: string }
+      toast.error('Hata: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const totalAmount = incomes.reduce((sum, i) => sum + i.amount, 0)
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-display">Gelirler</h1>
+        <Button onClick={drawer.openForCreate}>
+          <Plus className="h-4 w-4 mr-2" /> Yeni Gelir
+        </Button>
+      </div>
+
+      <FormDrawer
+        open={drawer.open}
+        onOpenChange={drawer.close}
+        title="Yeni Gelir Ekle"
+        description="Yeni bir gelir kaydı ekleyin"
+      >
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="record_date">Tarih</Label>
+              <Input 
+                id="record_date"
+                type="date" 
+                value={drawer.values.record_date} 
+                onChange={(e) => drawer.updateValues({ record_date: e.target.value })} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Tutar</Label>
+              <Input 
+                id="amount"
+                type="number" 
+                value={drawer.values.amount} 
+                onChange={(e) => drawer.updateValues({ amount: e.target.value })} 
+              />
+            </div>
+          </div>
+          <FormFieldSelectWithId
+            label="Müvekkil"
+            value={drawer.values.client_id}
+            onValueChange={(v) => drawer.updateValues({ client_id: v || '' })}
+            items={clients}
+            placeholder="Seçin"
+          />
+          <FormFieldSelectWithId
+            label="Kategori"
+            value={drawer.values.category_id}
+            onValueChange={(v) => drawer.updateValues({ category_id: v || '' })}
+            items={categories}
+            placeholder="Seçin"
+          />
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={handleSubmit} disabled={saving || !drawer.values.amount}>
+              {saving ? 'Kaydediliyor...' : 'Kaydet'}
+            </Button>
+            <Button variant="outline" onClick={drawer.close}>İptal</Button>
+          </div>
+        </div>
+      </FormDrawer>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Toplam Gelir</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-display font-bold text-green-600">{totalAmount.toLocaleString('tr-TR')} TRY</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="relative max-w-md">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Ara..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tarih</TableHead>
+              <TableHead>Müvekkil</TableHead>
+              <TableHead>Kategori</TableHead>
+              <TableHead className="text-right">Tutar</TableHead>
+              <TableHead>Durum</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow><TableCell colSpan={5} className="text-center py-8">Yükleniyor...</TableCell></TableRow>
+            ) : incomes.length === 0 ? (
+              <TableRow><TableCell colSpan={5} className="text-center py-8">Kayıt bulunamadı</TableCell></TableRow>
+            ) : (
+              incomes.map((income) => (
+                <TableRow key={income.id}>
+                  <TableCell>{new Date(income.record_date).toLocaleDateString('tr-TR')}</TableCell>
+                  <TableCell>{income.client?.name || '-'}</TableCell>
+                  <TableCell>{income.category?.label || '-'}</TableCell>
+                  <TableCell className="text-right font-medium">{income.amount.toLocaleString('tr-TR')} {income.currency}</TableCell>
+                  <TableCell>
+                    <Badge variant={income.payment_status === 'paid' ? 'default' : 'secondary'}>
+                      {getFieldLabel(PAYMENT_STATUS_MAPPING, income.payment_status)}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  )
+}
