@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Serif_Display, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
@@ -19,12 +19,15 @@ export const metadata: Metadata = {
   title: "Hukuk Bürosu Yönetim Sistemi",
   description: "Hukuk bürosu dava ve ofis yönetim sistemi",
   manifest: "/manifest.json",
-  themeColor: "#3b82f6",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Hukuk Bürosu",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#3b82f6",
 };
 
 export default function RootLayout({
