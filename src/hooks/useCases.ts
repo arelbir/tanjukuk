@@ -8,6 +8,9 @@ export const DEFAULT_FILTERS: CaseFilters = {
   search: '',
   statusFilter: 'all',
   lawyerFilter: 'all',
+  caseTypeFilter: 'all',
+  dateFrom: null,
+  dateTo: null,
   page: 1,
 }
 
@@ -75,6 +78,18 @@ export function useCases(initialFilters: CaseFilters = DEFAULT_FILTERS) {
 
     if (filters.lawyerFilter && filters.lawyerFilter !== 'all') {
       query = query.eq('lawyer_id', filters.lawyerFilter)
+    }
+
+    if (filters.caseTypeFilter && filters.caseTypeFilter !== 'all') {
+      query = query.eq('case_type_id', filters.caseTypeFilter)
+    }
+
+    if (filters.dateFrom) {
+      query = query.gte('opened_at', filters.dateFrom)
+    }
+
+    if (filters.dateTo) {
+      query = query.lte('opened_at', filters.dateTo)
     }
 
     const from = (filters.page - 1) * PAGE_SIZE

@@ -47,6 +47,25 @@ interface CaseDetail extends Case {
   court_type?: { label: string }
 }
 
+interface IncomeRecord {
+  id: string
+  record_date: string
+  amount: number
+  currency: string
+  payment_status: string
+  category?: { label: string }
+}
+
+interface ExpenseRecord {
+  id: string
+  record_date: string
+  amount: number
+  currency: string
+  payment_method: string | null
+  category?: { label: string }
+  sub_category?: { label: string }
+}
+
 export default function CaseDetailPage() {
   const params = useParams()
   const caseId = params.id as string
@@ -54,6 +73,8 @@ export default function CaseDetailPage() {
   const [caseData, setCaseData] = useState<CaseDetail | null>(null)
   const [hearings, setHearings] = useState<Hearing[]>([])
   const [activities, setActivities] = useState<CaseActivity[]>([])
+  const [incomeRecords, setIncomeRecords] = useState<IncomeRecord[]>([])
+  const [expenseRecords, setExpenseRecords] = useState<ExpenseRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [isHearingDrawerOpen, setIsHearingDrawerOpen] = useState(false)
   const [editingHearing, setEditingHearing] = useState<Hearing | null>(null)
@@ -93,9 +114,30 @@ export default function CaseDetailPage() {
         .eq('case_id', caseId)
         .order('scheduled_at', { ascending: true })
 
+      const { data: incomeRes } = await supabase
+        .from('income_records')
+        .select(`
+          id, record_date, amount, currency, payment_status,
+          category:lookup_values!income_records_category_id_fkey(label)
+        `)
+        .eq('case_id', caseId)
+        .order('record_date', { ascending: false })
+
+      const { data: expenseRes } = await supabase
+        .from('expense_records')
+        .select(`
+          id, record_date, amount, currency, payment_method,
+          category:lookup_values!expense_records_category_id_fkey(label),
+          sub_category:lookup_values!expense_records_sub_category_id_fkey(label)
+        `)
+        .eq('case_id', caseId)
+        .order('record_date', { ascending: false })
+
       setCaseData((caseRes as CaseDetail | null) || null)
       setHearings((hearingsRes as Hearing[] | null) || [])
       setActivities((activitiesRes as CaseActivity[] | null) || [])
+      setIncomeRecords((incomeRes as IncomeRecord[] | null) || [])
+      setExpenseRecords((expenseRes as ExpenseRecord[] | null) || [])
       setLoading(false)
     }
 
@@ -279,8 +321,22 @@ export default function CaseDetailPage() {
               <div><span className="font-medium">Durum:</span> {caseData.status?.label || '-'}</div>
               <div><span className="font-medium">Mahkeme:</span> {caseData.court_type?.label || '-'}</div>
               <div><span className="font-medium">Açılış Tarihi:</span> {caseData.opened_at ? new Date(caseData.opened_at).toLocaleDateString('tr-TR') : '-'}</div>
+              <div><span className="font-medium">Kapanma Tarihi:</span> {caseData.closed_at ? new Date(caseData.closed_at).toLocaleDateString('tr-TR') : '-'}</div>
+              <div><span className="font-medium">Dava Değeri:</span> {caseData.case_value ? `${caseData.case_value.toLocaleString('tr-TR')} ${caseData.currency}` : '-'}</div>
               <div><span className="font-medium">Avukat:</span> {caseData.lawyer?.full_name || '-'}</div>
               <div><span className="font-medium">Müvekkil:</span> {caseData.client?.name || '-'}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl">Karar Bilgileri</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div><span className="font-medium">Dava Sonucu:</span> {caseData.verdict_result || '-'}</div>
+              <div><span className="font-medium">Lehe Hükmedilen Tutar:</span> {caseData.verdict_for ? `${caseData.verdict_for.toLocaleString('tr-TR')} ${caseData.currency}` : '-'}</div>
+              <div><span className="font-medium">Aleyhe Hükmedilen Tutar:</span> {caseData.verdict_against ? `${caseData.verdict_against.toLocaleString('tr-TR')} ${caseData.currency}` : '-'}</div>
+              <div><span className="font-medium">Eski Mahkeme Bilgileri:</span> {caseData.old_court_info || '-'}</div>
             </CardContent>
           </Card>
 
@@ -400,6 +456,64 @@ export default function CaseDetailPage() {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl">Gelir / Gider Özeti</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="text-sm font-medium mb-2">Gelir Kayıtları</h4>
+                {incomeRecords.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Gelir kaydı bulunamadı</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Tarih</TableHead>
+                        <TableHead className="text-xs">Kategori</TableHead>
+                        <TableHead className="text-xs text-right">Tutar</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {incomeRecords.slice(0, 5).map((record) => (
+                        <TableRow key={record.id}>
+                          <TableCell className="text-xs">{new Date(record.record_date).toLocaleDateString('tr-TR')}</TableCell>
+                          <TableCell className="text-xs">{record.category?.label || '-'}</TableCell>
+                          <TableCell className="text-xs text-right font-medium">{record.amount.toLocaleString('tr-TR')} {record.currency}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+              <div>
+                <h4 className="text-sm font-medium mb-2">Gider Kayıtları</h4>
+                {expenseRecords.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Gider kaydı bulunamadı</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Tarih</TableHead>
+                        <TableHead className="text-xs">Kategori</TableHead>
+                        <TableHead className="text-xs text-right">Tutar</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {expenseRecords.slice(0, 5).map((record) => (
+                        <TableRow key={record.id}>
+                          <TableCell className="text-xs">{new Date(record.record_date).toLocaleDateString('tr-TR')}</TableCell>
+                          <TableCell className="text-xs">{record.category?.label || '-'}</TableCell>
+                          <TableCell className="text-xs text-right font-medium">{record.amount.toLocaleString('tr-TR')} {record.currency}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

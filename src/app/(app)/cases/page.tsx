@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -21,6 +22,7 @@ import { useCases } from '@/hooks'
 import { useMultipleLookups } from '@/hooks/useLookups'
 import { Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { LEAN_COLORS } from '@/types/case'
 import { ImportExportToolbar } from '@/components/import-export-toolbar'
 import {
   buildClientNameResolverMap,
@@ -36,8 +38,9 @@ import {
 export default function CasesPage() {
   const router = useRouter()
   const supabase = createClient()
-  const { lookups } = useMultipleLookups(['case_status'])
+  const { lookups } = useMultipleLookups(['case_status', 'case_type'])
   const statusOptions = lookups['case_status'] || []
+  const caseTypeOptions = lookups['case_type'] || []
   
   const {
     cases,
@@ -58,6 +61,11 @@ export default function CasesPage() {
   const statusFilterItems = [
     { id: 'all', label: 'Tüm Durumlar' },
     ...statusOptions
+  ]
+
+  const caseTypeFilterItems = [
+    { id: 'all', label: 'Tüm Dava Türleri' },
+    ...caseTypeOptions
   ]
 
   const handleDownloadTemplate = () => {
@@ -226,6 +234,33 @@ export default function CasesPage() {
               placeholder="Durum"
               triggerClassName="w-full sm:w-48"
             />
+            <FormFieldSelectWithId
+              value={filters.caseTypeFilter || 'all'}
+              onValueChange={(v) => updateFilters({ caseTypeFilter: v || 'all' })}
+              items={caseTypeFilterItems}
+              placeholder="Dava Türü"
+              triggerClassName="w-full sm:w-48"
+            />
+            <div className="flex gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Başlangıç</Label>
+                <Input
+                  type="date"
+                  value={filters.dateFrom || ''}
+                  onChange={(e) => updateFilters({ dateFrom: e.target.value || null })}
+                  className="w-full sm:w-40"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Bitiş</Label>
+                <Input
+                  type="date"
+                  value={filters.dateTo || ''}
+                  onChange={(e) => updateFilters({ dateTo: e.target.value || null })}
+                  className="w-full sm:w-40"
+                />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -259,9 +294,11 @@ export default function CasesPage() {
               </TableRow>
             ) : (
               cases.map((c) => (
-                <TableRow 
+                <TableRow
                   key={c.id}
-                  className="cursor-pointer hover:bg-muted/50 border-l-4 border-transparent hover:border-l-primary"
+                  className={`cursor-pointer hover:bg-muted/50 border-l-4 ${
+                    c.lean_against ? LEAN_COLORS[c.lean_against]?.split(' ')[1] || 'border-transparent' : 'border-transparent'
+                  } hover:border-l-primary`}
                   onClick={() => router.push(`/cases/${c.id}`)}
                 >
                   <TableCell className="font-medium">{c.case_code}</TableCell>

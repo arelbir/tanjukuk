@@ -10,6 +10,7 @@ import {
   Users,
   Clock
 } from 'lucide-react'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 interface DashboardStats {
   totalCases: number
@@ -21,10 +22,23 @@ interface DashboardStats {
   monthExpenses: number
 }
 
+interface StatusDistribution {
+  name: string
+  value: number
+  color: string
+}
+
+interface LawyerCaseCount {
+  name: string
+  value: number
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [userRole, setUserRole] = useState<string>('assistant')
   const [loading, setLoading] = useState(true)
+  const [statusDistribution, setStatusDistribution] = useState<StatusDistribution[]>([])
+  const [lawyerCaseCounts, setLawyerCaseCounts] = useState<LawyerCaseCount[]>([])
   const supabase = createClient()
 
   useEffect(() => {
@@ -46,7 +60,7 @@ export default function DashboardPage() {
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
 
-      let casesQuery = supabase.from('cases').select('id', { count: 'exact' })
+      let casesQuery = supabase.from('cases').select('id, status_id, lawyer_id', { count: 'exact' })
       const clientsQuery = supabase.from('clients').select('id', { count: 'exact' })
       let hearingsQuery = supabase.from('hearings').select('id, hearing_at')
       const incomeQuery = supabase.from('income_records').select('amount')
@@ -85,6 +99,48 @@ export default function DashboardPage() {
         monthIncome,
         monthExpenses
       })
+
+      // Load chart data for admin/assistant
+      if (userData?.role === 'admin' || userData?.role === 'assistant') {
+        // Status distribution
+        const statusIds = casesResult.data?.map(c => c.status_id).filter(Boolean) || []
+        const statusCounts: Record<string, number> = {}
+        statusIds.forEach(id => {
+          statusCounts[id] = (statusCounts[id] || 0) + 1
+        })
+
+        const { data: statusLabels } = await supabase
+          .from('lookup_values')
+          .select('id, label')
+          .in('id', Object.keys(statusCounts))
+
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+        const statusData: StatusDistribution[] = (statusLabels || []).map((s, i) => ({
+          name: s.label,
+          value: statusCounts[s.id] || 0,
+          color: colors[i % colors.length]
+        }))
+        setStatusDistribution(statusData)
+
+        // Lawyer case counts
+        const lawyerIds = casesResult.data?.map(c => c.lawyer_id).filter(Boolean) || []
+        const lawyerCounts: Record<string, number> = {}
+        lawyerIds.forEach(id => {
+          lawyerCounts[id] = (lawyerCounts[id] || 0) + 1
+        })
+
+        const { data: lawyerNames } = await supabase
+          .from('users')
+          .select('id, full_name')
+          .in('id', Object.keys(lawyerCounts))
+
+        const lawyerData: LawyerCaseCount[] = (lawyerNames || []).map(l => ({
+          name: l.full_name,
+          value: lawyerCounts[l.id] || 0
+        }))
+        setLawyerCaseCounts(lawyerData)
+      }
+
       setLoading(false)
     }
 
@@ -180,6 +236,58 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {(userRole === 'admin' || userRole === 'assistant') && (
+        <>
+          {statusDistribution.length > 0 && (
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Dosya Durumu Dağılımı</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={statusDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name}: ${percent ? (percent * 100).toFixed(0) : 0}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {statusDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {lawyerCaseCounts.length > 0 && (
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Avukata Göre Aktif Dosya Sayısı</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={lawyerCaseCounts}>
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="value" fill="#3b82f6" name="Dosya Sayısı" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </div>
   )

@@ -45,6 +45,9 @@ export interface CaseFilters {
   search: string
   statusFilter: string | null
   lawyerFilter: string | null
+  caseTypeFilter: string | null
+  dateFrom: string | null
+  dateTo: string | null
   page: number
 }
 
@@ -52,6 +55,9 @@ export const DEFAULT_FILTERS: CaseFilters = {
   search: '',
   statusFilter: 'all',
   lawyerFilter: 'all',
+  caseTypeFilter: 'all',
+  dateFrom: null,
+  dateTo: null,
   page: 1,
 }
 

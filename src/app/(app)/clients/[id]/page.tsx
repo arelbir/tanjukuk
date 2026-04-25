@@ -6,6 +6,11 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { toast } from 'sonner'
+import { Edit } from 'lucide-react'
 import type { Client } from '@/types/client'
 
 interface ClientCaseSummary {
@@ -22,10 +27,12 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<Client | null>(null)
   const [cases, setCases] = useState<ClientCaseSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false)
+  const [editFormData, setEditFormData] = useState<Partial<Client>>({})
+  const [saving, setSaving] = useState(false)
+  const supabase = createClient()
 
   useEffect(() => {
-    const supabase = createClient()
-
     async function loadClientDetails() {
       const [{ data: clientData }, { data: caseData }] = await Promise.all([
         supabase
@@ -46,7 +53,49 @@ export default function ClientDetailPage() {
     }
 
     void loadClientDetails()
-  }, [clientId])
+  }, [clientId, supabase])
+
+  const handleEditClick = () => {
+    if (client) {
+      setEditFormData(client)
+      setIsEditDrawerOpen(true)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!client) return
+    setSaving(true)
+
+    const { error } = await supabase
+      .from('clients')
+      .update({
+        name: editFormData.name,
+        type: editFormData.type,
+        phone: editFormData.phone,
+        email: editFormData.email,
+        tax_no: editFormData.tax_no,
+        address: editFormData.address,
+      })
+      .eq('id', clientId)
+
+    setSaving(false)
+
+    if (error) {
+      toast.error('Müvekkil güncellenirken hata oluştu')
+      return
+    }
+
+    toast.success('Müvekkil başarıyla güncellendi')
+    setIsEditDrawerOpen(false)
+
+    const { data: updatedClient } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', clientId)
+      .single()
+
+    setClient(updatedClient || null)
+  }
 
   if (loading) {
     return <div className="flex h-64 items-center justify-center text-muted-foreground">Yükleniyor...</div>
@@ -65,9 +114,15 @@ export default function ClientDetailPage() {
             {client.type === 'individual' ? 'Bireysel Müvekkil' : 'Şirket Müvekkil'}
           </p>
         </div>
-        <Link href="/clients">
-          <Button variant="outline">Listeye Dön</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleEditClick}>
+            <Edit className="h-4 w-4 mr-2" />
+            Düzenle
+          </Button>
+          <Link href="/clients">
+            <Button variant="outline">Listeye Dön</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -125,6 +180,74 @@ export default function ClientDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isEditDrawerOpen} onOpenChange={setIsEditDrawerOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Müvekkil Düzenle</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Ad</Label>
+              <Input
+                id="name"
+                value={editFormData.name || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="type">Tür</Label>
+              <select
+                id="type"
+                value={editFormData.type || 'individual'}
+                onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value as 'individual' | 'company' })}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="individual">Bireysel</option>
+                <option value="company">Şirket</option>
+              </select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Telefon</Label>
+              <Input
+                id="phone"
+                value={editFormData.phone || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">E-posta</Label>
+              <Input
+                id="email"
+                value={editFormData.email || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tax_no">Vergi No</Label>
+              <Input
+                id="tax_no"
+                value={editFormData.tax_no || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, tax_no: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="address">Adres</Label>
+              <Input
+                id="address"
+                value={editFormData.address || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDrawerOpen(false)}>İptal</Button>
+            <Button onClick={handleSaveEdit} disabled={saving}>
+              {saving ? 'Kaydediliyor...' : 'Kaydet'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
