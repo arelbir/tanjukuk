@@ -24,38 +24,46 @@ function normalizeNumber(value: unknown) {
 export const expenseImportDefinition: ImportDefinition<ExpenseImportRow> = {
   fileName: 'gider-sablon.xlsx',
   sheetName: 'Giderler',
-  headers: ['expense_type', 'category_label', 'sub_category_label', 'record_date', 'amount', 'payment_method', 'description'],
+  headers: ['Gider Türü', 'Kategori', 'Alt Kategori', 'Tarih', 'Tutar', 'Ödeme Yöntemi', 'Açıklama'],
   instructions: [
-    "expense_type: kurum veya kisisel",
-    'category_label gider kategorisi lookup label değeridir.',
-    'sub_category_label varsa alt kategori label değeri olmalıdır.',
+    "Gider Türü: Kurum veya Kişisel",
+    'Kategori gider kategorisi lookup label değeridir.',
+    'Alt Kategori varsa alt kategori label değeri olmalıdır.',
   ],
-  toRow: (item) => ({ ...item }),
+  toRow: (item) => ({
+    'Gider Türü': item.expense_type === 'kurum' ? 'Kurum' : 'Kişisel',
+    'Kategori': item.category_label,
+    'Alt Kategori': item.sub_category_label,
+    'Tarih': item.record_date,
+    'Tutar': item.amount,
+    'Ödeme Yöntemi': item.payment_method,
+    'Açıklama': item.description,
+  }),
   fromRow: (row) => {
-    const expense_type = String(row.expense_type || '').trim().toLowerCase()
-    const category_label = String(row.category_label || '').trim()
-    const record_date = String(row.record_date || '').trim()
-    const amount = normalizeNumber(row.amount)
-    const payment_method = String(row.payment_method || '').trim()
+    const expense_type = String(row['Gider Türü'] || '').trim().toLowerCase()
+    const category_label = String(row['Kategori'] || '').trim()
+    const record_date = String(row['Tarih'] || '').trim()
+    const amount = normalizeNumber(row['Tutar'])
+    const payment_method = String(row['Ödeme Yöntemi'] || '').trim()
     const errors: string[] = []
 
-    if (expense_type !== 'kurum' && expense_type !== 'kisisel') errors.push('expense_type kurum veya kisisel olmalıdır')
-    if (!category_label) errors.push('category_label zorunludur')
-    if (!record_date) errors.push('record_date zorunludur')
-    if (amount === null) errors.push('amount sayısal olmalıdır')
-    if (!payment_method) errors.push('payment_method zorunludur')
+    if (expense_type !== 'kurum' && expense_type !== 'kisisel' && expense_type !== 'kişisel') errors.push('Gider Türü Kurum veya Kişisel olmalıdır')
+    if (!category_label) errors.push('Kategori zorunludur')
+    if (!record_date) errors.push('Tarih zorunludur')
+    if (amount === null) errors.push('Tutar sayısal olmalıdır')
+    if (!payment_method) errors.push('Ödeme Yöntemi zorunludur')
 
     if (errors.length > 0) return { errors }
 
     return {
       value: {
-        expense_type: expense_type as 'kurum' | 'kisisel',
+        expense_type: (expense_type === 'kurum' || expense_type === 'kişisel') ? (expense_type === 'kurum' ? 'kurum' : 'kisisel') : 'kurum',
         category_label,
-        sub_category_label: normalizeString(row.sub_category_label),
+        sub_category_label: normalizeString(row['Alt Kategori']),
         record_date,
         amount: amount || 0,
         payment_method,
-        description: normalizeString(row.description),
+        description: normalizeString(row['Açıklama']),
       },
     }
   },

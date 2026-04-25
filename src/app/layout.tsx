@@ -18,6 +18,13 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "Hukuk Bürosu Yönetim Sistemi",
   description: "Hukuk bürosu dava ve ofis yönetim sistemi",
+  manifest: "/manifest.json",
+  themeColor: "#3b82f6",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Hukuk Bürosu",
+  },
 };
 
 export default function RootLayout({

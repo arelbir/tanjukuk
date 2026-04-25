@@ -16,16 +16,22 @@ function normalizeString(value: unknown) {
 export const hearingImportDefinition: ImportDefinition<HearingImportRow> = {
   fileName: 'durusma-sablon.xlsx',
   sheetName: 'Duruşmalar',
-  headers: ['case_code', 'hearing_at', 'location', 'result', 'next_step'],
-  instructions: ['case_code sistemdeki dosya koduyla eşleşmelidir. hearing_at ISO datetime formatında olmalıdır.'],
-  toRow: (item) => ({ ...item }),
+  headers: ['Dosya Kodu', 'Duruşma Tarihi', 'Yer', 'Sonuç', 'Sonraki Adım'],
+  instructions: ['Dosya Kodu sistemdeki dosya koduyla eşleşmelidir. Duruşma Tarihi YYYY-MM-DD formatında olmalıdır (örn: 2024-01-15).'],
+  toRow: (item) => ({
+    'Dosya Kodu': item.case_code,
+    'Duruşma Tarihi': item.hearing_at,
+    'Yer': item.location,
+    'Sonuç': item.result,
+    'Sonraki Adım': item.next_step,
+  }),
   fromRow: (row) => {
-    const case_code = String(row.case_code || '').trim()
-    const hearing_at = String(row.hearing_at || '').trim()
+    const case_code = String(row['Dosya Kodu'] || '').trim()
+    const hearing_at = String(row['Duruşma Tarihi'] || '').trim()
     const errors: string[] = []
 
-    if (!case_code) errors.push('case_code zorunludur')
-    if (!hearing_at) errors.push('hearing_at zorunludur')
+    if (!case_code) errors.push('Dosya Kodu zorunludur')
+    if (!hearing_at) errors.push('Duruşma Tarihi zorunludur')
 
     if (errors.length > 0) return { errors }
 
@@ -33,9 +39,9 @@ export const hearingImportDefinition: ImportDefinition<HearingImportRow> = {
       value: {
         case_code,
         hearing_at,
-        location: normalizeString(row.location),
-        result: normalizeString(row.result),
-        next_step: normalizeString(row.next_step),
+        location: normalizeString(row['Yer']),
+        result: normalizeString(row['Sonuç']),
+        next_step: normalizeString(row['Sonraki Adım']),
       },
     }
   },

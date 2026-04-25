@@ -17,26 +17,26 @@ function normalizeString(value: unknown) {
 export const clientImportDefinition: ImportDefinition<ClientImportRow> = {
   fileName: 'muvvekkil-sablon.xlsx',
   sheetName: 'Müvekkiller',
-  headers: ['name', 'type', 'phone', 'email', 'tax_no', 'address'],
+  headers: ['Ad', 'Tür', 'Telefon', 'E-posta', 'Vergi No', 'Adres'],
   toRow: (item) => ({
-    name: item.name,
-    type: item.type,
-    phone: item.phone || '',
-    email: item.email || '',
-    tax_no: item.tax_no || '',
-    address: item.address || '',
+    'Ad': item.name,
+    'Tür': item.type,
+    'Telefon': item.phone || '',
+    'E-posta': item.email || '',
+    'Vergi No': item.tax_no || '',
+    'Adres': item.address || '',
   }),
   fromRow: (row) => {
-    const name = String(row.name || '').trim()
-    const rawType = String(row.type || '').trim().toLowerCase()
+    const name = String(row['Ad'] || '').trim()
+    const rawType = String(row['Tür'] || '').trim().toLowerCase()
     const errors: string[] = []
 
     if (!name) {
-      errors.push('name zorunludur')
+      errors.push('Ad zorunludur')
     }
 
     if (rawType !== 'company' && rawType !== 'şirket' && rawType !== 'individual' && rawType !== 'bireysel') {
-      errors.push("type 'individual' veya 'company' olmalıdır")
+      errors.push("Tür 'Bireysel' veya 'Şirket' olmalıdır")
     }
 
     if (errors.length > 0) {
@@ -49,10 +49,10 @@ export const clientImportDefinition: ImportDefinition<ClientImportRow> = {
       value: {
         name,
         type,
-        phone: normalizeString(row.phone),
-        email: normalizeString(row.email),
-        tax_no: normalizeString(row.tax_no),
-        address: normalizeString(row.address),
+        phone: normalizeString(row['Telefon']),
+        email: normalizeString(row['E-posta']),
+        tax_no: normalizeString(row['Vergi No']),
+        address: normalizeString(row['Adres']),
       },
     }
   },

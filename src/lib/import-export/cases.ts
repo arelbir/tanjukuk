@@ -37,45 +37,45 @@ export const caseImportDefinition: ImportDefinition<CaseImportRow> = {
   fileName: 'dosya-sablon.xlsx',
   sheetName: 'Dosyalar',
   headers: [
-    'lawyer_email',
-    'client_name',
-    'opposing_party',
-    'client_role_label',
-    'entity_type',
-    'court_city',
-    'court_district',
-    'court_type_label',
-    'court_no',
-    'file_year',
-    'file_no',
-    'file_type_label',
-    'case_type_label',
-    'status_label',
-    'opened_at',
-    'case_value',
-    'currency',
-    'description',
-    'notes',
+    'Avukat E-posta',
+    'Müvekkil Adı',
+    'Karşı Taraf',
+    'Müvekkil Rolü',
+    'Varlık Türü',
+    'Mahkeme Şehri',
+    'Mahkeme İlçesi',
+    'Mahkeme Türü',
+    'Mahkeme No',
+    'Dosya Yılı',
+    'Dosya No',
+    'Dosya Türü',
+    'Dava Türü',
+    'Durum',
+    'Açılış Tarihi',
+    'Dava Değeri',
+    'Para Birimi',
+    'Açıklama',
+    'Notlar',
   ],
   instructions: [
-    'lawyer_email ve client_name sistemde var olan kayıtlarla eşleşmelidir.',
-    'case_type_label, status_label, court_type_label, file_type_label ve client_role_label lookup label değerleridir.',
-    'opened_at zorunludur ve YYYY-MM-DD formatında olmalıdır.',
+    'Avukat E-posta ve Müvekkil Adı sistemde var olan kayıtlarla eşleşmelidir.',
+    'Dava Türü, Durum, Mahkeme Türü, Dosya Türü ve Müvekkil Rolü sistemdeki etiket değerleridir.',
+    'Açılış Tarihi zorunludur ve YYYY-MM-DD formatında olmalıdır (örn: 2024-01-15).',
   ],
   toRow: (item) => ({ ...item }),
   fromRow: (row) => {
-    const lawyer_email = String(row.lawyer_email || '').trim()
-    const client_name = String(row.client_name || '').trim()
-    const opposing_party = String(row.opposing_party || '').trim()
-    const opened_at = String(row.opened_at || '').trim()
-    const currency = String(row.currency || 'TRY').trim() || 'TRY'
-    const entity_type = String(row.entity_type || 'individual').trim() || 'individual'
+    const lawyer_email = String(row['Avukat E-posta'] || '').trim()
+    const client_name = String(row['Müvekkil Adı'] || '').trim()
+    const opposing_party = String(row['Karşı Taraf'] || '').trim()
+    const opened_at = String(row['Açılış Tarihi'] || '').trim()
+    const currency = String(row['Para Birimi'] || 'TRY').trim() || 'TRY'
+    const entity_type = String(row['Varlık Türü'] || 'individual').trim() || 'individual'
     const errors: string[] = []
 
-    if (!lawyer_email) errors.push('lawyer_email zorunludur')
-    if (!client_name) errors.push('client_name zorunludur')
-    if (!opposing_party) errors.push('opposing_party zorunludur')
-    if (!opened_at) errors.push('opened_at zorunludur')
+    if (!lawyer_email) errors.push('Avukat E-posta zorunludur')
+    if (!client_name) errors.push('Müvekkil Adı zorunludur')
+    if (!opposing_party) errors.push('Karşı Taraf zorunludur')
+    if (!opened_at) errors.push('Açılış Tarihi zorunludur')
 
     if (errors.length > 0) {
       return { errors }

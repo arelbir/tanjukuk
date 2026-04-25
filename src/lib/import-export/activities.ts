@@ -24,18 +24,26 @@ function normalizeNumber(value: unknown) {
 export const activityImportDefinition: ImportDefinition<ActivityImportRow> = {
   fileName: 'aktivite-sablon.xlsx',
   sheetName: 'Aktiviteler',
-  headers: ['case_code', 'title', 'activity_type_label', 'scheduled_at', 'duration_minutes', 'location', 'description'],
-  instructions: ['case_code sistemdeki dosya koduyla eşleşmelidir. activity_type_label varsa lookup label değeri olmalıdır.'],
-  toRow: (item) => ({ ...item }),
+  headers: ['Dosya Kodu', 'Başlık', 'Aktivite Türü', 'Planlanan Tarih', 'Süre (Dakika)', 'Yer', 'Açıklama'],
+  instructions: ['Dosya Kodu sistemdeki dosya koduyla eşleşmelidir. Aktivite Türü varsa lookup label değeri olmalıdır. Planlanan Tarih YYYY-MM-DD formatında olmalıdır.'],
+  toRow: (item) => ({
+    'Dosya Kodu': item.case_code,
+    'Başlık': item.title,
+    'Aktivite Türü': item.activity_type_label,
+    'Planlanan Tarih': item.scheduled_at,
+    'Süre (Dakika)': item.duration_minutes,
+    'Yer': item.location,
+    'Açıklama': item.description,
+  }),
   fromRow: (row) => {
-    const case_code = String(row.case_code || '').trim()
-    const title = String(row.title || '').trim()
-    const scheduled_at = String(row.scheduled_at || '').trim()
+    const case_code = String(row['Dosya Kodu'] || '').trim()
+    const title = String(row['Başlık'] || '').trim()
+    const scheduled_at = String(row['Planlanan Tarih'] || '').trim()
     const errors: string[] = []
 
-    if (!case_code) errors.push('case_code zorunludur')
-    if (!title) errors.push('title zorunludur')
-    if (!scheduled_at) errors.push('scheduled_at zorunludur')
+    if (!case_code) errors.push('Dosya Kodu zorunludur')
+    if (!title) errors.push('Başlık zorunludur')
+    if (!scheduled_at) errors.push('Planlanan Tarih zorunludur')
 
     if (errors.length > 0) return { errors }
 
@@ -43,11 +51,11 @@ export const activityImportDefinition: ImportDefinition<ActivityImportRow> = {
       value: {
         case_code,
         title,
-        activity_type_label: normalizeString(row.activity_type_label),
+        activity_type_label: normalizeString(row['Aktivite Türü']),
         scheduled_at,
-        duration_minutes: normalizeNumber(row.duration_minutes),
-        location: normalizeString(row.location),
-        description: normalizeString(row.description),
+        duration_minutes: normalizeNumber(row['Süre (Dakika)']),
+        location: normalizeString(row['Yer']),
+        description: normalizeString(row['Açıklama']),
       },
     }
   },
