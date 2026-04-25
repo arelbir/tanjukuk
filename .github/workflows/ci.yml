@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: hukuk-buro/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: hukuk-buro
+
+      - name: Lint
+        run: npm run lint
+        working-directory: hukuk-buro
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: hukuk-buro
+
+      - name: Build
+        run: npm run build
+        working-directory: hukuk-buro

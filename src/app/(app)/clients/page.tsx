@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,14 +13,24 @@ import { FormFieldSelect } from '@/components/form-field-select'
 import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import { CLIENT_TYPE_MAPPING } from '@/types/mappings'
+import { ImportExportToolbar } from '@/components/import-export-toolbar'
+import {
+  clientImportDefinition,
+  createTemplateWorkbook,
+  createWorkbookFromDefinition,
+  downloadWorkbook,
+  mapClientForExport,
+  parseWorkbook,
+} from '@/lib/import-export'
 
 interface Client {
   id: string
   name: string
-  type: string
+  type: 'individual' | 'company'
   phone: string | null
   email: string | null
   tax_no: string | null
+  address?: string | null
   created_at: string
 }
 
@@ -81,13 +91,65 @@ export default function ClientsPage() {
     }
   }
 
+  const handleDownloadTemplate = () => {
+    const workbook = createTemplateWorkbook(clientImportDefinition)
+    downloadWorkbook(workbook, clientImportDefinition.fileName)
+  }
+
+  const handleExport = () => {
+    const workbook = createWorkbookFromDefinition(clientImportDefinition, clients.map((client) => mapClientForExport(client)))
+    downloadWorkbook(workbook, `muvvekkiller-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
+  const handleImport = async (file: File) => {
+    const parsed = await parseWorkbook(file, clientImportDefinition)
+
+    if (parsed.invalid.length > 0) {
+      toast.error(`${parsed.invalid.length} satır doğrulamadan geçemedi`)
+    }
+
+    if (parsed.valid.length === 0) {
+      return
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const payload = parsed.valid.map((item) => ({
+      ...item,
+      created_by: user?.id,
+    }))
+
+    const { error } = await supabase.from('clients').insert(payload)
+
+    if (error) {
+      toast.error('Import hatası: ' + error.message)
+      return
+    }
+
+    toast.success(`${parsed.valid.length} müvekkil içe aktarıldı`)
+    const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false })
+    setClients((data as Client[] | null) || [])
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-display">Müvekkiller</h1>
-        <Button onClick={drawer.openForCreate}>
-          <Plus className="h-4 w-4 mr-2" /> Yeni Müvekkil
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <ImportExportToolbar
+            onDownloadTemplate={handleDownloadTemplate}
+            onExport={handleExport}
+            onImport={handleImport}
+            importLabel="Şablon Yükle"
+            templateLabel="Şablon İndir"
+            exportLabel="Müvekkilleri Dışa Aktar"
+          />
+          <Button onClick={() => drawer.openForCreate()}>
+            <Plus className="h-4 w-4 mr-2" /> Yeni Müvekkil
+          </Button>
+        </div>
       </div>
 
       <FormDrawer

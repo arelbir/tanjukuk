@@ -44,6 +44,12 @@ export const CLIENT_TYPE_MAPPING: FieldMapping[] = [
   { value: 'company', label: 'Şirket' },
 ]
 
+export const USER_ROLE_MAPPING: FieldMapping[] = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'lawyer', label: 'Avukat' },
+  { value: 'assistant', label: 'Asistan' },
+]
+
 export const getFieldLabel = (
   mappings: FieldMapping[],
   value: string

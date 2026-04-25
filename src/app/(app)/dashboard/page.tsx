@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { 
   FolderKanban, 
-  CalendarDays, 
   TrendingUp, 
   TrendingDown,
   Users,
@@ -48,10 +47,10 @@ export default function DashboardPage() {
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
 
       let casesQuery = supabase.from('cases').select('id', { count: 'exact' })
-      let clientsQuery = supabase.from('clients').select('id', { count: 'exact' })
+      const clientsQuery = supabase.from('clients').select('id', { count: 'exact' })
       let hearingsQuery = supabase.from('hearings').select('id, hearing_at')
-      let incomeQuery = supabase.from('income_records').select('amount')
-      let expensesQuery = supabase.from('expense_records').select('amount')
+      const incomeQuery = supabase.from('income_records').select('amount')
+      const expensesQuery = supabase.from('expense_records').select('amount')
 
       if (userData?.role !== 'admin' && userData?.role !== 'assistant') {
         casesQuery = casesQuery.eq('lawyer_id', user.id)
@@ -142,7 +141,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl mx-auto">
       <div>
         <h2 className="font-display text-2xl text-foreground mb-1">Hoş Geldiniz</h2>
         <p className="text-muted-foreground">Bugün {new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>

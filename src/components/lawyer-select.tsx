@@ -3,10 +3,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ChevronDown, Check } from 'lucide-react'
 
 interface Lawyer {
   id: string
@@ -21,12 +19,14 @@ interface LawyerSelectProps {
 }
 
 export function LawyerSelect({ value, onChange, label = 'Avukat', required }: LawyerSelectProps) {
-  const [lawyers, setLawyers] = useState< Lawyer[]>([])
+  const [lawyers, setLawyers] = useState<Lawyer[]>([])
   const [open, setOpen] = useState(false)
-  const [selectedName, setSelectedName] = useState('')
-  const supabase = createClient()
+  const selectedLawyer = lawyers.find((lawyer) => lawyer.id === value)
+  const selectedName = selectedLawyer?.full_name || ''
 
   useEffect(() => {
+    const supabase = createClient()
+
     async function loadLawyers() {
       const { data } = await supabase
         .from('users')
@@ -36,17 +36,9 @@ export function LawyerSelect({ value, onChange, label = 'Avukat', required }: La
         .order('full_name')
       setLawyers(data || [])
     }
-    loadLawyers()
-  }, [supabase])
 
-  useEffect(() => {
-    if (value && lawyers.length > 0) {
-      const lawyer = lawyers.find(l => l.id === value)
-      if (lawyer) setSelectedName(lawyer.full_name)
-    } else {
-      setSelectedName('')
-    }
-  }, [value, lawyers])
+    void loadLawyers()
+  }, [])
 
   return (
     <div className="space-y-2">

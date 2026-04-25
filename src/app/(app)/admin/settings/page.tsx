@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -13,48 +13,46 @@ import { Label } from '@/components/ui/label'
 import { FormDrawer, useFormDrawer } from '@/components/form-drawer'
 import { toast } from 'sonner'
 import { Plus, Trash2, ListTree } from 'lucide-react'
-import { LookupValue, LOOKUP_GROUPS, getLookupLabel } from '@/types/lookup'
+import { LookupValue, getLookupLabel } from '@/types/lookup'
 
 export default function AdminSettingsPage() {
   const [lookups, setLookups] = useState<LookupValue[]>([])
   const [loading, setLoading] = useState(true)
-  
-  // States for Sub-Category Manager
   const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string>('')
-  
   const supabase = createClient()
 
   const drawer = useFormDrawer<{ label: string; groupKey: string }>({
     label: '',
-    groupKey: ''
+    groupKey: '',
   })
 
-  const loadLookups = async () => {
+  const loadLookups = useCallback(async () => {
     const { data } = await supabase
       .from('lookup_values')
       .select('*')
       .order('group_key', { ascending: true })
       .order('sort_order', { ascending: true })
-    
+
     setLookups(data || [])
     setLoading(false)
-  }
-
-  useEffect(() => {
-    loadLookups()
   }, [supabase])
 
-  // Split lookups
-  const expenseCategories = lookups.filter(l => l.group_key === 'expense_category')
-  const generalGroupKeys = [...new Set(lookups.map(l => l.group_key))].filter(g => !g.startsWith('expense_sub_'))
-  
-  const getGroupItems = (groupKey: string) => lookups.filter(l => l.group_key === groupKey)
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      void loadLookups()
+    }, 0)
+
+    return () => clearTimeout(timeout)
+  }, [loadLookups])
+
+  const expenseCategories = lookups.filter((l) => l.group_key === 'expense_category')
+  const generalGroupKeys = [...new Set(lookups.map((l) => l.group_key))].filter((g) => !g.startsWith('expense_sub_'))
+  const getGroupItems = (groupKey: string) => lookups.filter((l) => l.group_key === groupKey)
 
   const getActiveSubCategoryKey = () => {
     if (!selectedExpenseCategory) return null
-    const cat = expenseCategories.find(c => c.id === selectedExpenseCategory)
+    const cat = expenseCategories.find((c) => c.id === selectedExpenseCategory)
     if (!cat) return null
-    // Converts e.g. "Personel" to "expense_sub_personel"
     const key = cat.label.toLowerCase().replace(/[^a-z]/g, '')
     return `expense_sub_${key}`
   }
@@ -63,16 +61,18 @@ export default function AdminSettingsPage() {
   const activeSubCategoryItems = activeSubCategoryKey ? getGroupItems(activeSubCategoryKey) : []
 
   const handleAddValue = async () => {
-    const groupKey = drawer.values.groupKey as string
-    if (!drawer.values.label.trim() || !groupKey) return
+    const groupKey = drawer.values.groupKey
+    if (!drawer.values.label.trim() || !groupKey) {
+      return
+    }
 
-    const maxOrder = Math.max(...lookups.filter(l => l.group_key === groupKey).map(l => l.sort_order), 0)
+    const maxOrder = Math.max(...lookups.filter((l) => l.group_key === groupKey).map((l) => l.sort_order), 0)
 
     const { error } = await supabase.from('lookup_values').insert({
       group_key: groupKey,
       label: drawer.values.label.trim(),
       sort_order: maxOrder + 1,
-      is_active: true
+      is_active: true,
     })
 
     if (error) {
@@ -82,12 +82,11 @@ export default function AdminSettingsPage() {
 
     toast.success('Değer başarıyla eklendi!')
     drawer.close()
-    loadLookups() // Refresh lists
+    void loadLookups()
   }
 
   const openForAdd = (groupKey: string) => {
-    drawer.setValues({ label: '', groupKey })
-    drawer.openForCreate()
+    drawer.openForCreate({ label: '', groupKey })
   }
 
   const toggleActive = async (id: string, currentStatus: boolean) => {
@@ -101,7 +100,7 @@ export default function AdminSettingsPage() {
       return
     }
 
-    setLookups(lookups.map(l => l.id === id ? { ...l, is_active: !currentStatus } : l))
+    setLookups(lookups.map((l) => (l.id === id ? { ...l, is_active: !currentStatus } : l)))
   }
 
   const deleteValue = async (id: string) => {
@@ -112,13 +111,15 @@ export default function AdminSettingsPage() {
       return
     }
 
-    setLookups(lookups.filter(l => l.id !== id))
+    setLookups(lookups.filter((l) => l.id !== id))
     toast.success('Değer sistemden silindi')
   }
 
-  // Helper renderer for a list of single values
   const renderListItems = (items: LookupValue[], groupKey: string) => {
-    if (items.length === 0) return <div className="text-sm text-muted-foreground p-4 text-center bg-muted/20 border rounded-md">Bu grupta henüz kayıtlı değer bulunmuyor.</div>
+    if (items.length === 0) {
+      return <div className="text-sm text-muted-foreground p-4 text-center bg-muted/20 border rounded-md">Bu grupta henüz kayıtlı değer bulunmuyor.</div>
+    }
+
     return (
       <div className="space-y-2">
         {items.map((item) => (
@@ -149,10 +150,12 @@ export default function AdminSettingsPage() {
     )
   }
 
-  if (loading) return <div className="flex h-[60vh] items-center justify-center">Sistem Ayarları Yükleniyor...</div>
+  if (loading) {
+    return <div className="flex h-[60vh] items-center justify-center">Sistem Ayarları Yükleniyor...</div>
+  }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20 pt-4">
+    <div className="space-y-6 max-w-5xl mx-auto pb-20 pt-4">
       <div className="flex items-center justify-between bg-primary/5 p-5 rounded-2xl border border-primary/10 shadow-sm">
         <div>
           <h1 className="text-2xl font-display font-semibold">Sistem Genel Ayarları</h1>
@@ -169,17 +172,19 @@ export default function AdminSettingsPage() {
         <div className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="label">Görünen Değer Adı</Label>
-            <Input 
+            <Input
               id="label"
-              value={drawer.values.label} 
-              onChange={(e) => drawer.updateValues({ label: e.target.value })} 
-              placeholder="Örn: Asliye Hukuk" 
+              value={drawer.values.label}
+              onChange={(e) => drawer.updateValues({ label: e.target.value })}
+              placeholder="Örn: Asliye Hukuk"
               className="h-11"
             />
           </div>
           <div className="flex gap-3 pt-4">
-            <Button variant="outline" className="flex-1" onClick={drawer.close}>İptal</Button>
-            <Button className="flex-1" onClick={handleAddValue} disabled={!drawer.values.label.trim()}>
+            <Button type="button" variant="outline" className="flex-1" onClick={drawer.close}>
+              İptal
+            </Button>
+            <Button type="button" className="flex-1" onClick={handleAddValue} disabled={!drawer.values.label.trim()}>
               Ekle & Kaydet
             </Button>
           </div>
@@ -202,8 +207,8 @@ export default function AdminSettingsPage() {
               <Accordion type="single" collapsible className="w-full">
                 {generalGroupKeys.map((groupKey) => {
                   const items = getGroupItems(groupKey)
-                  const activeCount = items.filter(i => i.is_active).length
-                  
+                  const activeCount = items.filter((i) => i.is_active).length
+
                   return (
                     <AccordionItem key={groupKey} value={groupKey} className="border-b last:border-0 hover:bg-muted/10 transition-colors px-2">
                       <AccordionTrigger className="hover:no-underline py-4">
@@ -234,19 +239,19 @@ export default function AdminSettingsPage() {
                 </div>
                 <div>
                   <CardTitle>Alt Kategori Hiyerarşisi</CardTitle>
-                  <CardDescription>Mali kayıtlarınızın "Kategori &gt; Alt Kategori" bağlarını buradan oluşturabilirsiniz.</CardDescription>
+                  <CardDescription>Mali kayıtlarınızın kategori ve alt kategori bağlarını buradan oluşturabilirsiniz.</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="max-w-md space-y-2">
                 <Label className="text-sm font-semibold">1. Adım: Ana Gider Kategorisi Seçin</Label>
-                <Select value={selectedExpenseCategory} onValueChange={setSelectedExpenseCategory}>
+                <Select value={selectedExpenseCategory} onValueChange={(v) => setSelectedExpenseCategory(v || '')}>
                   <SelectTrigger className="h-11">
                     <SelectValue placeholder="Personel, Ofis vs." />
                   </SelectTrigger>
                   <SelectContent>
-                    {expenseCategories.map(cat => (
+                    {expenseCategories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id} disabled={!cat.is_active}>
                         {cat.label} {cat.is_active ? '' : '(Pasif)'}
                       </SelectItem>
@@ -268,7 +273,9 @@ export default function AdminSettingsPage() {
               ) : (
                 <div className="p-8 text-center border-2 border-dashed rounded-xl bg-muted/10 mt-6 flex flex-col items-center gap-2">
                   <ListTree className="w-8 h-8 text-muted-foreground opacity-50" />
-                  <p className="text-muted-foreground text-sm font-medium">Birimleri yönetmek için önce yukarıdan bir ana kategori seçin.</p>
+                  <p className="text-muted-foreground text-sm font-medium">
+                    Birimleri yönetmek için önce yukarıdan bir ana kategori seçin.
+                  </p>
                 </div>
               )}
             </CardContent>

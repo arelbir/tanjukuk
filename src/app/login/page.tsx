@@ -87,7 +87,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          Hukuk Bürosu Yönetim Sistemi
+          Davet bağlantısıyla geldiyseniz bağlantı sizi onboarding ekranına yönlendirecektir.
         </p>
       </div>
     </div>

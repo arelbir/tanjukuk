@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local scripts are maintained separately from app lint gates.
+    "scripts/**",
+    "seed.cjs",
   ]),
 ]);
 

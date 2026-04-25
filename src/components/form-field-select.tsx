@@ -8,7 +8,7 @@ type LookupItem = { id: string; label?: string; name?: string }
 type StaticItem = { value: string; label: string }
 
 interface FormFieldSelectProps<T> {
-  label: string
+  label?: string
   value: string
   onValueChange: (value: string | null) => void
   items: T[]
@@ -17,6 +17,7 @@ interface FormFieldSelectProps<T> {
   placeholder?: string
   required?: boolean
   disabled?: boolean
+  triggerClassName?: string
 }
 
 function defaultGetValue(item: LookupItem): string {
@@ -37,6 +38,7 @@ export function FormFieldSelect<T extends LookupItem | StaticItem>({
   placeholder = 'Seçin',
   required = false,
   disabled = false,
+  triggerClassName = 'h-11',
 }: FormFieldSelectProps<T>) {
   const id = useId()
 
@@ -45,12 +47,14 @@ export function FormFieldSelect<T extends LookupItem | StaticItem>({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id} className="text-sm font-medium">
-        {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
-      </Label>
+      {label && (
+        <Label htmlFor={id} className="text-sm font-medium">
+          {label}
+          {required && <span className="text-destructive ml-0.5">*</span>}
+        </Label>
+      )}
       <Select value={value || ''} onValueChange={(v) => onValueChange(v || null)} disabled={disabled}>
-        <SelectTrigger id={id} className="h-11">
+        <SelectTrigger id={id} className={triggerClassName}>
           <SelectValue placeholder={placeholder}>
             {displayLabel}
           </SelectValue>
@@ -75,14 +79,16 @@ export function FormFieldSelectWithId({
   placeholder = 'Seçin',
   required = false,
   disabled = false,
+  triggerClassName = 'h-11',
 }: {
-  label: string
+  label?: string
   value: string
   onValueChange: (value: string | null) => void
   items: { id: string; label?: string; name?: string }[]
   placeholder?: string
   required?: boolean
   disabled?: boolean
+  triggerClassName?: string
 }) {
   const id = useId()
 
@@ -95,12 +101,14 @@ export function FormFieldSelectWithId({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id} className="text-sm font-medium">
-        {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
-      </Label>
+      {label && (
+        <Label htmlFor={id} className="text-sm font-medium">
+          {label}
+          {required && <span className="text-destructive ml-0.5">*</span>}
+        </Label>
+      )}
       <Select value={value || ''} onValueChange={(v) => onValueChange(v || null)} disabled={disabled}>
-        <SelectTrigger id={id} className="h-11">
+        <SelectTrigger id={id} className={triggerClassName}>
           <SelectValue placeholder={placeholder}>
             {displayLabel}
           </SelectValue>

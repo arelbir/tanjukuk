@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
 import { Plus, X, Search, Check, ChevronDown } from 'lucide-react'
 
 interface Client {
@@ -35,12 +34,15 @@ export function ClientSelect({ value, onChange, label = 'Müvekkil', required }:
     phone: '',
     email: ''
   })
-  const [selectedClientName, setSelectedClientName] = useState('')
   const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+  const selectedClient = clients.find((client) => client.id === value)
+  const selectedClientName = selectedClient?.name || ''
 
   useEffect(() => {
+    const supabase = createClient()
+
     async function loadClients() {
       const { data } = await supabase
         .from('clients')
@@ -48,15 +50,9 @@ export function ClientSelect({ value, onChange, label = 'Müvekkil', required }:
         .order('name')
       setClients(data || [])
     }
-    loadClients()
-  }, [supabase])
 
-  useEffect(() => {
-    if (value && clients.length > 0) {
-      const client = clients.find(c => c.id === value)
-      if (client) setSelectedClientName(client.name)
-    }
-  }, [value, clients])
+    void loadClients()
+  }, [])
 
   const filteredClients = clients.filter(c => 
     c.name.toLowerCase().includes(search.toLowerCase())
@@ -64,7 +60,6 @@ export function ClientSelect({ value, onChange, label = 'Müvekkil', required }:
 
   const handleSelect = (client: Client) => {
     onChange(client.id, client.name)
-    setSelectedClientName(client.name)
     setSearch('')
     setOpen(false)
   }
@@ -91,7 +86,6 @@ export function ClientSelect({ value, onChange, label = 'Müvekkil', required }:
 
     const created = data as Client
     onChange(created.id, created.name)
-    setSelectedClientName(created.name)
     setNewClient({ name: '', type: 'individual', phone: '', email: '' })
     setShowNewForm(false)
     setLoading(false)
@@ -101,9 +95,6 @@ export function ClientSelect({ value, onChange, label = 'Müvekkil', required }:
 
   const handleOpenDropdown = () => {
     setOpen(true)
-    if (!value) {
-      setSelectedClientName('')
-    }
   }
 
   return (

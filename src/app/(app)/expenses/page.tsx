@@ -8,12 +8,28 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FormDrawer, useFormDrawer } from '@/components/form-drawer'
 import { FormFieldSelect, FormFieldSelectWithId } from '@/components/form-field-select'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import { PAYMENT_METHOD_MAPPING, getFieldLabel } from '@/types/mappings'
+import { useAuth } from '@/hooks/useAuth'
+
+interface ExpenseRelation {
+  label: string
+}
+
+interface ExpenseRecordRow {
+  id: string
+  record_date: string
+  amount: number
+  currency: string
+  payment_method: string | null
+  expense_type: string | null
+  category?: ExpenseRelation | ExpenseRelation[] | null
+  sub_category?: ExpenseRelation | ExpenseRelation[] | null
+}
 
 interface Expense {
   id: string
@@ -21,17 +37,26 @@ interface Expense {
   amount: number
   currency: string
   payment_method: string | null
+  expense_type: string
   category?: { label: string }
   sub_category?: { label: string }
 }
 
+type ExpenseType = 'kurum' | 'kisisel'
+
 interface FormData {
+  expense_type: ExpenseType
   category_id: string
   sub_category_id: string
   record_date: string
   amount: string
   payment_method: string
   description: string
+}
+
+function normalizeRelation(relation?: ExpenseRelation | ExpenseRelation[] | null) {
+  if (!relation) return undefined
+  return Array.isArray(relation) ? relation[0] : relation
 }
 
 export default function ExpensesPage() {
@@ -41,17 +66,20 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [saving, setSaving] = useState(false)
+  const [expenseType, setExpenseType] = useState<ExpenseType>('kurum')
+  const { isAdmin } = useAuth()
   const supabase = createClient()
 
   const drawer = useFormDrawer<FormData>({
-    category_id: '', sub_category_id: '', record_date: new Date().toISOString().split('T')[0],
+    expense_type: 'kurum', category_id: '', sub_category_id: '', record_date: new Date().toISOString().split('T')[0],
     amount: '', payment_method: 'cash', description: ''
   })
 
   useEffect(() => {
     async function loadData() {
       let query = supabase.from('expense_records')
-        .select(`*, category:lookup_values!expense_records_category_id_fkey(label), sub_category:lookup_values!expense_records_sub_category_id_fkey(label)`)
+        .select(`id, record_date, amount, currency, payment_method, expense_type, category:lookup_values!expense_records_category_id_fkey(label), sub_category:lookup_values!expense_records_sub_category_id_fkey(label)`)
+        .eq('expense_type', expenseType)
         .order('record_date', { ascending: false })
       if (search) query = query.or(`description.ilike.%${search}%,document_ref.ilike.%${search}%`)
       
@@ -60,12 +88,23 @@ export default function ExpensesPage() {
         supabase.from('lookup_values').select('id, label').eq('group_key', 'expense_category').eq('is_active', true).order('sort_order')
       ])
       
-      setExpenses(expensesRes.data || [])
+      const mapped: Expense[] = ((expensesRes.data as ExpenseRecordRow[] | null) || []).map((expense) => ({
+        id: expense.id,
+        record_date: expense.record_date,
+        amount: expense.amount,
+        currency: expense.currency,
+        payment_method: expense.payment_method,
+        expense_type: expense.expense_type || 'kurum',
+        category: normalizeRelation(expense.category),
+        sub_category: normalizeRelation(expense.sub_category),
+      }))
+      
+      setExpenses(mapped)
       setCategories(catsRes.data || [])
       setLoading(false)
     }
     loadData()
-  }, [supabase, search])
+  }, [supabase, search, expenseType])
 
   useEffect(() => {
     if (drawer.values.category_id) {
@@ -84,6 +123,7 @@ export default function ExpensesPage() {
       const { data: { user } } = await supabase.auth.getUser()
       const { error } = await supabase.from('expense_records').insert({
         recorded_by: user?.id,
+        expense_type: drawer.values.expense_type,
         category_id: drawer.values.category_id,
         sub_category_id: drawer.values.sub_category_id || null,
         record_date: drawer.values.record_date,
@@ -94,8 +134,21 @@ export default function ExpensesPage() {
       if (error) throw error
       toast.success('Gider eklendi!')
       drawer.close()
-      const { data } = await supabase.from('expense_records').select(`*, category:lookup_values!expense_records_category_id_fkey(label), sub_category:lookup_values!expense_records_sub_category_id_fkey(label)`).order('record_date', { ascending: false })
-      setExpenses(data || [])
+      const { data } = await supabase.from('expense_records')
+        .select(`id, record_date, amount, currency, payment_method, expense_type, category:lookup_values!expense_records_category_id_fkey(label), sub_category:lookup_values!expense_records_sub_category_id_fkey(label)`)
+        .eq('expense_type', drawer.values.expense_type)
+        .order('record_date', { ascending: false })
+      const mapped: Expense[] = ((data as ExpenseRecordRow[] | null) || []).map((expense) => ({
+        id: expense.id,
+        record_date: expense.record_date,
+        amount: expense.amount,
+        currency: expense.currency,
+        payment_method: expense.payment_method,
+        expense_type: expense.expense_type || 'kurum',
+        category: normalizeRelation(expense.category),
+        sub_category: normalizeRelation(expense.sub_category),
+      }))
+      setExpenses(mapped)
     } catch (error: unknown) {
       const err = error as { message: string }
       toast.error('Hata: ' + err.message)
@@ -105,12 +158,14 @@ export default function ExpensesPage() {
   }
 
   const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const kurumTotal = expenseType === 'kurum' ? totalAmount : 0
+  const kisiselTotal = expenseType === 'kisisel' ? totalAmount : 0
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-display">Giderler</h1>
-        <Button onClick={drawer.openForCreate}>
+        <Button onClick={() => drawer.openForCreate()}>
           <Plus className="h-4 w-4 mr-2" /> Yeni Gider
         </Button>
       </div>
@@ -122,6 +177,29 @@ export default function ExpensesPage() {
         description="Yeni bir gider kaydı ekleyin"
       >
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Gider Türü</Label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="expense_type" 
+                  checked={drawer.values.expense_type === 'kurum'}
+                  onChange={() => drawer.updateValues({ expense_type: 'kurum' })}
+                />
+                <span>Kurum Gideri</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="expense_type" 
+                  checked={drawer.values.expense_type === 'kisisel'}
+                  onChange={() => drawer.updateValues({ expense_type: 'kisisel' })}
+                />
+                <span>Kişisel Gider</span>
+              </label>
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="record_date">Tarih</Label>
@@ -184,16 +262,33 @@ export default function ExpensesPage() {
         </div>
       </FormDrawer>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Toplam Gider</CardTitle>
+            <CardTitle className="text-sm font-medium">Kurum Giderleri</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-display font-bold text-red-600">{totalAmount.toLocaleString('tr-TR')} TRY</div>
+            <div className="text-2xl font-display font-bold text-red-600">{kurumTotal.toLocaleString('tr-TR')} TRY</div>
           </CardContent>
         </Card>
+        {isAdmin && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Kişisel Giderler</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-display font-bold text-orange-600">{kisiselTotal.toLocaleString('tr-TR')} TRY</div>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      <Tabs value={expenseType} onValueChange={(v) => setExpenseType(v as ExpenseType)}>
+        <TabsList>
+          <TabsTrigger value="kurum">Kurum</TabsTrigger>
+          {isAdmin && <TabsTrigger value="kisisel">Kişisel</TabsTrigger>}
+        </TabsList>
+      </Tabs>
 
       <Card>
         <CardContent className="p-4">
@@ -209,6 +304,7 @@ export default function ExpensesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Tarih</TableHead>
+              <TableHead>Tür</TableHead>
               <TableHead>Kategori</TableHead>
               <TableHead>Alt Kategori</TableHead>
               <TableHead className="text-right">Tutar</TableHead>
@@ -217,13 +313,18 @@ export default function ExpensesPage() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8">Yükleniyor...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8">Yükleniyor...</TableCell></TableRow>
             ) : expenses.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8">Kayıt bulunamadı</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8">Kayıt bulunamadı</TableCell></TableRow>
             ) : (
               expenses.map((expense) => (
                 <TableRow key={expense.id}>
                   <TableCell>{new Date(expense.record_date).toLocaleDateString('tr-TR')}</TableCell>
+                  <TableCell>
+                    <Badge className={expense.expense_type === 'kurum' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}>
+                      {expense.expense_type === 'kurum' ? 'Kurum' : 'Kişisel'}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{expense.category?.label || '-'}</TableCell>
                   <TableCell>{expense.sub_category?.label || '-'}</TableCell>
                   <TableCell className="text-right font-medium">{expense.amount.toLocaleString('tr-TR')} {expense.currency}</TableCell>

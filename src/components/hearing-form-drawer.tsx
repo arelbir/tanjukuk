@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FormDrawer } from '@/components/form-drawer'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -15,20 +15,50 @@ import { cn } from '@/lib/utils'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
+interface Hearing {
+  id: string
+  hearing_at: string
+  location: string | null
+  result: string | null
+  next_step: string | null
+  is_completed: boolean | null
+}
+
 interface HearingFormDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   caseId: string
-  onSuccess: (newHearing: any) => void
+  hearing?: Hearing | null
+  isAdmin?: boolean
+  onSuccess: (newHearing: Hearing) => void
 }
 
-export function HearingFormDrawer({ open, onOpenChange, caseId, onSuccess }: HearingFormDrawerProps) {
+export function HearingFormDrawer({ open, onOpenChange, caseId, hearing, isAdmin = false, onSuccess }: HearingFormDrawerProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [date, setDate] = useState<Date>()
+  const isEditing = !!hearing
+  const isPastHearing = hearing ? new Date(hearing.hearing_at) < new Date() : false
+  const canSave = !isPastHearing || isAdmin
+  const [date, setDate] = useState<Date | undefined>(undefined)
   const [time, setTime] = useState<string>('09:00')
   const [location, setLocation] = useState('')
   const [result, setResult] = useState('')
   const [nextStep, setNextStep] = useState('')
+
+  useEffect(() => {
+    if (hearing) {
+      setDate(new Date(hearing.hearing_at))
+      setTime(new Date(hearing.hearing_at).toTimeString().slice(0, 5))
+      setLocation(hearing.location || '')
+      setResult(hearing.result || '')
+      setNextStep(hearing.next_step || '')
+    } else {
+      setDate(undefined)
+      setTime('09:00')
+      setLocation('')
+      setResult('')
+      setNextStep('')
+    }
+  }, [hearing, open])
 
   const supabase = createClient()
 
@@ -43,39 +73,48 @@ export function HearingFormDrawer({ open, onOpenChange, caseId, onSuccess }: Hea
     setIsSubmitting(true)
 
     try {
-      // Create full ISO string with selected date and time
       const dateStr = format(date, 'yyyy-MM-dd')
       const hearingAt = `${dateStr}T${time}:00`
 
-      const { data, error } = await supabase
-        .from('hearings')
-        .insert({
-          case_id: caseId,
-          hearing_at: hearingAt,
-          location: location || null,
-          result: result || null,
-          next_step: nextStep || null,
-          is_completed: false
-        })
-        .select()
-        .single()
+      if (isEditing) {
+        const { data, error } = await supabase
+          .from('hearings')
+          .update({
+            hearing_at: hearingAt,
+            location: location || null,
+            result: result || null,
+            next_step: nextStep || null,
+          })
+          .eq('id', hearing.id)
+          .select()
+          .single()
 
-      if (error) throw error
+        if (error) throw error
+        toast.success('Duruşma başarıyla güncellendi')
+        onSuccess(data)
+      } else {
+        const { data, error } = await supabase
+          .from('hearings')
+          .insert({
+            case_id: caseId,
+            hearing_at: hearingAt,
+            location: location || null,
+            result: result || null,
+            next_step: nextStep || null,
+            is_completed: false
+          })
+          .select()
+          .single()
 
-      toast.success('Duruşma başarıyla eklendi')
+        if (error) throw error
+        toast.success('Duruşma başarıyla eklendi')
+        onSuccess(data)
+      }
       
-      // Reset form
-      setDate(undefined)
-      setTime('09:00')
-      setLocation('')
-      setResult('')
-      setNextStep('')
-      
-      onSuccess(data)
       onOpenChange(false)
-    } catch (error: any) {
-      console.error('Error adding hearing:', error)
-      toast.error('Duruşma eklenirken hata oluştu: ' + error.message)
+    } catch (error: unknown) {
+      console.error('Error saving hearing:', error)
+      toast.error('Duruşma kaydedilirken hata oluştu: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'))
     } finally {
       setIsSubmitting(false)
     }
@@ -85,8 +124,8 @@ export function HearingFormDrawer({ open, onOpenChange, caseId, onSuccess }: Hea
     <FormDrawer
       open={open}
       onOpenChange={onOpenChange}
-      title="Yeni Duruşma Ekle"
-      description="Bu dava dosyası için yeni bir duruşma kaydı oluşturun."
+      title={isEditing ? 'Duruşmayı Düzenle' : 'Yeni Duruşma Ekle'}
+      description={isEditing ? 'Duruşma bilgilerini güncelleyin.' : 'Bu dava dosyası için yeni bir duruşma kaydı oluşturun.'}
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
@@ -159,7 +198,11 @@ export function HearingFormDrawer({ open, onOpenChange, caseId, onSuccess }: Hea
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             İptal
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button 
+            type="submit" 
+            disabled={isSubmitting || (isEditing && !canSave)}
+            title={isEditing && !canSave ? "Geçmiş duruşmaları sadece admin düzenleyebilir" : undefined}
+          >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Kaydet
           </Button>

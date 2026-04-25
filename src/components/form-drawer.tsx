@@ -2,7 +2,7 @@
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import { ReactNode, useState, useEffect } from 'react'
+import { ReactNode, useState } from 'react'
 
 interface FormDrawerProps {
   open: boolean
@@ -43,13 +43,15 @@ export function FormDrawerTrigger({ onClick, children, className }: FormDrawerTr
   )
 }
 
-export function useFormDrawer<T extends Record<string, any>>(defaultValues: T) {
+export function useFormDrawer<T extends object>(defaultValues: T) {
   const [open, setOpen] = useState(false)
   const [values, setValues] = useState<T>(defaultValues)
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  const openForCreate = () => {
-    setValues({ ...defaultValues })
+  const openForCreate = (initialValues?: Partial<T>) => {
+    if (initialValues) {
+      setValues({ ...defaultValues, ...initialValues })
+    }
     setEditingId(null)
     setOpen(true)
   }

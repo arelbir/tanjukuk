@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -13,27 +12,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
-import { FilterDrawer } from '@/components/filter-drawer'
 import { LeanBadge } from '@/components/lean-badge'
+import { FormFieldSelectWithId } from '@/components/form-field-select'
 import { useCases } from '@/hooks'
-import { CaseFilters, DEFAULT_FILTERS } from '@/types/case'
 import { useMultipleLookups } from '@/hooks/useLookups'
-import { Plus, Search, Filter } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 
 export default function CasesPage() {
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [tempFilters, setTempFilters] = useState(DEFAULT_FILTERS)
-  const { lookups } = useMultipleLookups(['case_status', 'court_instance'])
+  const { lookups } = useMultipleLookups(['case_status'])
   const statusOptions = lookups['case_status'] || []
-  const courtInstanceOptions = lookups['court_instance'] || []
   
   const {
     cases,
@@ -43,29 +31,24 @@ export default function CasesPage() {
     filters,
     totalPages,
     updateFilters,
-    resetFilters,
     goToPage,
   } = useCases()
 
-  const handleApplyFilters = (newFilters: CaseFilters) => {
-    setTempFilters(newFilters)
-    updateFilters(newFilters)
-  }
+  const lawyerFilterItems = [
+    { id: 'all', label: 'Tüm Avukatlar' },
+    ...lawyers.map(l => ({ id: l.id, label: l.full_name }))
+  ]
 
-  const handleClearFilters = () => {
-    setTempFilters(DEFAULT_FILTERS)
-    resetFilters()
-  }
+  const statusFilterItems = [
+    { id: 'all', label: 'Tüm Durumlar' },
+    ...statusOptions
+  ]
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-3xl font-display">Dosyalar</h1>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setDrawerOpen(true)}>
-            <Filter className="h-4 w-4 mr-2" />
-            Filtrele
-          </Button>
           <Link href="/cases/new">
             <Button className="bg-primary hover:bg-primary/90">
               <Plus className="h-4 w-4 mr-2" />
@@ -74,15 +57,6 @@ export default function CasesPage() {
           </Link>
         </div>
       </div>
-
-      <FilterDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        filters={tempFilters}
-        onApply={handleApplyFilters}
-        onClear={handleClearFilters}
-        lawyers={lawyers}
-      />
 
       <Card className="border-0 shadow-sm">
         <CardContent className="p-4">
@@ -96,34 +70,20 @@ export default function CasesPage() {
                 onChange={(e) => updateFilters({ search: e.target.value })}
               />
             </div>
-            <Select value={filters.lawyerFilter || 'all'} onValueChange={(v) => updateFilters({ lawyerFilter: v || 'all' })}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Avukat" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm Avukatlar</SelectItem>
-                {lawyers.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>{l.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filters.statusFilter || 'all'} onValueChange={(v) => updateFilters({ statusFilter: v || 'all' })}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Durum" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm Durumlar</SelectItem>
-                {courtInstanceOptions.length > 0 ? (
-                  courtInstanceOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.label}>{opt.label}</SelectItem>
-                  ))
-                ) : statusOptions.length > 0 ? (
-                  statusOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.label}>{opt.label}</SelectItem>
-                  ))
-                ) : null}
-              </SelectContent>
-            </Select>
+            <FormFieldSelectWithId
+              value={filters.lawyerFilter || 'all'}
+              onValueChange={(v) => updateFilters({ lawyerFilter: v || 'all' })}
+              items={lawyerFilterItems}
+              placeholder="Avukat"
+              triggerClassName="w-full sm:w-48"
+            />
+            <FormFieldSelectWithId
+              value={filters.statusFilter || 'all'}
+              onValueChange={(v) => updateFilters({ statusFilter: v || 'all' })}
+              items={statusFilterItems}
+              placeholder="Durum"
+              triggerClassName="w-full sm:w-48"
+            />
           </div>
         </CardContent>
       </Card>

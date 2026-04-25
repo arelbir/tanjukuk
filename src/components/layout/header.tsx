@@ -3,13 +3,13 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { 
-  Bell, 
   Search,
   Menu,
-  UserCircle
+  UserCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { NotificationBell } from '@/components/notification-bell'
 
 interface HeaderProps {
   title?: string
@@ -58,10 +58,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           />
         </div>
         
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
-        </Button>
+        <NotificationBell />
         
         <div className="flex items-center gap-2 rounded-xl bg-background/50 px-3 py-2 border border-border/50">
           <UserCircle className="h-5 w-5 text-muted-foreground" />

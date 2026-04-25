@@ -18,7 +18,7 @@ export function EditableField({ label, isEditing, displayValue, children, classN
           {children}
         </div>
       ) : (
-        <p className="font-medium min-h-6">{displayValue || '-'}</p>
+        <div className="font-medium min-h-6">{displayValue || '-'}</div>
       )}
     </div>
   )

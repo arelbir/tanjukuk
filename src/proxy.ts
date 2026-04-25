@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const protectedRoutes = [
@@ -12,11 +12,10 @@ const protectedRoutes = [
 ]
 
 const adminRoutes = ['/admin']
+const adminApiRoutes = ['/api/admin', '/api/seed']
 
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({
-    request,
-  })
+export async function proxy(request: NextRequest) {
+  const response = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,11 +25,11 @@ export async function middleware(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: CookieOptions) {
           request.cookies.set(name, value)
           response.cookies.set(name, value, options)
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           request.cookies.set(name, '')
           response.cookies.set(name, '', options)
         },
@@ -62,6 +61,22 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if (adminApiRoutes.some((route) => path.startsWith(route))) {
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (userData?.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
+
   if (path === '/login' && user) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
@@ -78,6 +93,8 @@ export const config = {
     '/income/:path*',
     '/expenses/:path*',
     '/admin/:path*',
+    '/api/admin/:path*',
+    '/api/seed',
     '/login',
   ],
 }

@@ -9,8 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Label } from '@/components/ui/label'
 import { FormDrawer, useFormDrawer } from '@/components/form-drawer'
-import { FormFieldSelect, FormFieldSelectWithId } from '@/components/form-field-select'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { FormFieldSelectWithId } from '@/components/form-field-select'
 import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import { PAYMENT_STATUS_MAPPING, getFieldLabel } from '@/types/mappings'
@@ -98,10 +97,10 @@ export default function IncomePage() {
   const totalAmount = incomes.reduce((sum, i) => sum + i.amount, 0)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-display">Gelirler</h1>
-        <Button onClick={drawer.openForCreate}>
+        <Button onClick={() => drawer.openForCreate()}>
           <Plus className="h-4 w-4 mr-2" /> Yeni Gelir
         </Button>
       </div>

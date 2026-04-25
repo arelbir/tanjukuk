@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FormDrawer, useFormDrawer } from '@/components/form-drawer'
-import { useLookup } from '@/hooks/useLookups'
+import { FormFieldSelect } from '@/components/form-field-select'
+import { USER_ROLE_MAPPING } from '@/types/mappings'
 import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 
@@ -29,11 +29,11 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('')
   const [sending, setSending] = useState(false)
   const supabase = createClient()
-  const { items: roleOptions } = useLookup('user_role')
 
-  const drawer = useFormDrawer<{ email: string; role: string }>({
+  const drawer = useFormDrawer<{ email: string; role: string; full_name: string }>({
     email: '',
-    role: 'assistant'
+    role: 'assistant',
+    full_name: ''
   })
 
   useEffect(() => {
@@ -57,18 +57,27 @@ export default function AdminUsersPage() {
   const handleInvite = async () => {
     setSending(true)
     try {
-      const { error } = await supabase.from('users').insert({
-        email: drawer.values.email,
-        full_name: 'Yeni Kullanıcı',
-        role: drawer.values.role,
-        is_active: true
+      const response = await fetch('/api/admin/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: drawer.values.email,
+          role: drawer.values.role,
+          fullName: drawer.values.full_name,
+        }),
       })
 
-      if (error) throw error
+      const result = await response.json()
 
-      toast.success(`${drawer.values.email} kullanıcı eklendi!`)
+      if (!response.ok) {
+        throw new Error(result.error || 'Davet işlemi başarısız oldu')
+      }
+
+      toast.success(`${drawer.values.email} adresine davet gönderildi!`)
       drawer.close()
-      
+
       const { data } = await supabase.from('users').select('*').order('created_at', { ascending: false })
       setUsers(data || [])
     } catch (error: unknown) {
@@ -110,10 +119,10 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-display">Kullanıcılar</h1>
-        <Button onClick={drawer.openForCreate}>
+        <Button onClick={() => drawer.openForCreate()}>
           <Plus className="h-4 w-4 mr-2" />
           Kullanıcı Davet Et
         </Button>
@@ -123,38 +132,41 @@ export default function AdminUsersPage() {
         open={drawer.open}
         onOpenChange={drawer.close}
         title="Yeni Kullanıcı Davet Et"
-        description="Sisteme davet edilecek kullanıcının bilgilerini girin"
+        description="Sisteme giriş yapacak kullanıcıya e-posta daveti gönderin"
       >
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">E-posta</Label>
-            <Input 
-              id="email"
-              type="email" 
-              placeholder="email@example.com"
-              value={drawer.values.email} 
-              onChange={(e) => drawer.updateValues({ email: e.target.value })} 
+            <Label htmlFor="full_name">Ad Soyad</Label>
+            <Input
+              id="full_name"
+              placeholder="Örn: Ayşe Yılmaz"
+              value={drawer.values.full_name}
+              onChange={(e) => drawer.updateValues({ full_name: e.target.value })}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="role">Rol</Label>
-            <Select 
-              value={drawer.values.role} 
-              onValueChange={(v) => drawer.updateValues({ role: v || 'assistant' })}
-            >
-              <SelectTrigger id="role"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {roleOptions.map((role) => (
-                  <SelectItem key={role.id} value={role.label}>{role.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="email">E-posta</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="email@example.com"
+              value={drawer.values.email}
+              onChange={(e) => drawer.updateValues({ email: e.target.value })}
+            />
           </div>
+          <FormFieldSelect
+            label="Rol"
+            value={drawer.values.role}
+            onValueChange={(v) => drawer.updateValues({ role: v || 'assistant' })}
+            items={USER_ROLE_MAPPING}
+            getValue={(item) => item.value}
+            getLabel={(item) => item.label}
+          />
           <div className="flex gap-2">
-            <Button 
-              className="flex-1" 
-              onClick={handleInvite} 
-              disabled={sending || !drawer.values.email}
+            <Button
+              className="flex-1"
+              onClick={handleInvite}
+              disabled={sending || !drawer.values.email || !drawer.values.full_name}
             >
               {sending ? 'Gönderiliyor...' : 'Davet Gönder'}
             </Button>
@@ -208,16 +220,14 @@ export default function AdminUsersPage() {
                   <TableCell className="font-medium">{user.full_name || '-'}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Select value={user.role || roleOptions[0]?.label || 'assistant'} onValueChange={(v) => updateUserRole(user.id, v || 'assistant')}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roleOptions.map((role) => (
-                          <SelectItem key={role.id} value={role.label}>{role.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormFieldSelect
+                      value={user.role || 'assistant'}
+                      onValueChange={(v) => updateUserRole(user.id, v || 'assistant')}
+                      items={USER_ROLE_MAPPING}
+                      getValue={(item) => item.value}
+                      getLabel={(item) => item.label}
+                      triggerClassName="w-32"
+                    />
                   </TableCell>
                   <TableCell>
                     <Badge variant={user.is_active ? 'default' : 'secondary'}>
@@ -226,8 +236,8 @@ export default function AdminUsersPage() {
                   </TableCell>
                   <TableCell>{new Date(user.created_at).toLocaleDateString('tr-TR')}</TableCell>
                   <TableCell>
-                    <Button 
-                      variant={user.is_active ? 'outline' : 'default'} 
+                    <Button
+                      variant={user.is_active ? 'outline' : 'default'}
                       size="sm"
                       onClick={() => toggleUserStatus(user.id, user.is_active)}
                     >

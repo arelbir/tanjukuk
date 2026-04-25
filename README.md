@@ -1,36 +1,133 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hukuk Bürosu Yönetim Sistemi
 
-## Getting Started
+Bu proje, hukuk büroları için geliştirilen bir operasyon yönetim panelidir. Uygulama; dosya takibi, müvekkil yönetimi, duruşma ve aktivite planlama, gelir/gider takibi, lookup yönetimi ve kullanıcı yönetimi modüllerini içerir.
 
-First, run the development server:
+## Teknoloji yığını
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- Supabase Auth + Database
+- ESLint
+
+## Temel modüller
+
+- Dashboard: genel metrikler ve özet görünüm
+- Dosyalar: dava/dosya listesi, yeni dosya oluşturma, dosya detayları
+- Müvekkiller: listeleme, oluşturma, detay görüntüleme
+- Takvim: duruşma ve aktivite görünümü
+- Gelir / Gider: finans kayıtları
+- Admin / Kullanıcılar: kullanıcı davet etme, rol ve aktiflik yönetimi
+- Admin / Ayarlar: lookup ve alt kategori yönetimi
+
+## Gereksinimler
+
+- Node.js 20+
+- npm 10+
+- Supabase projesi
+
+## Ortam değişkenleri
+
+Uygulamayı çalıştırmadan önce `.env.local` oluşturun. Örnek değerler için `.env.example` dosyasını kullanın.
+
+Gerekli değişkenler:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Notlar:
+
+- `SUPABASE_SERVICE_ROLE_KEY`, yalnızca sunucu tarafındaki admin işlemlerinde kullanılır.
+- Admin kullanıcı daveti `/api/admin/invite` route'u üzerinden çalışır ve service role key gerektirir.
+
+## Kurulum
+
+```bash
+npm install
+```
+
+## Geliştirme
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Kalite komutları
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Veritabanı ve migration notları
 
-## Learn More
+Migration dosyaları `src/lib/migrations` altında tutulur.
 
-To learn more about Next.js, take a look at the following resources:
+Önemli dosyalar:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `003_create_notifications.sql`
+- `004_create_hearings.sql`
+- `005_create_case_activities.sql`
+- `007_extend_hearings.sql`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Uygulama tarafında hearing kayıtları `result`, `next_step` ve `is_completed` alanlarını kullanır. Bu nedenle `007_extend_hearings.sql` uygulanmış olmalıdır.
 
-## Deploy on Vercel
+## Kullanıcı davet akışı
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Admin panelindeki kullanıcı daveti gerçek auth invite akışına bağlanmıştır.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Akış:
+
+1. Admin, `Admin > Kullanıcılar` ekranından davet başlatır.
+2. İstek `POST /api/admin/invite` route'una gider.
+3. Route, oturumu ve admin rolünü doğrular.
+4. Supabase admin API ile davet e-postası gönderilir.
+5. `users` tablosunda kullanıcı profili upsert edilir.
+
+## Erişim ve yetkilendirme
+
+Route düzeyindeki koruma `src/proxy.ts` üzerinden yapılır.
+
+Korunan alanlar:
+
+- `/dashboard`
+- `/cases`
+- `/calendar`
+- `/clients`
+- `/income`
+- `/expenses`
+- `/admin`
+
+Admin-only alanlar:
+
+- `/admin`
+- `/api/admin/*`
+- `/api/seed`
+
+Not: Proxy yalnızca ilk koruma katmanıdır. Hassas route handler'larda ayrıca rol kontrolü yapılır.
+
+## CI
+
+GitHub Actions workflow dosyası `.github/workflows/ci.yml` altında bulunur.
+
+Pipeline şu kontrolleri çalıştırır:
+
+- `npm ci`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
+## Bilinen teknik notlar
+
+- Next.js 16 ile `middleware` yerine `proxy` kullanılmalıdır; proje buna geçirilmiştir.
+- Seed endpoint admin korumalıdır.
+- Client detail route `/clients/[id]` aktif durumdadır.
+
+## Önerilen sonraki işler
+
+- onboarding / şifre oluşturma akışını tamamlamak
+- README'ye deployment ve Supabase setup adımlarını daha ayrıntılı eklemek
+- kritik kullanıcı akışları için test eklemek

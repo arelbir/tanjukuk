@@ -3,9 +3,9 @@
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FormDrawer } from '@/components/form-drawer'
-import { CaseFilters, DEFAULT_FILTERS } from '@/types/case'
+import { FormFieldSelectWithId } from '@/components/form-field-select'
+import { CaseFilters } from '@/types/case'
 
 interface FilterDrawerProps {
   open: boolean
@@ -14,18 +14,20 @@ interface FilterDrawerProps {
   onApply: (filters: CaseFilters) => void
   onClear: () => void
   lawyers: { id: string; full_name: string }[]
+  statusOptions?: { id: string; label: string }[]
 }
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'Tüm Durumlar' },
-  { value: 'Yerel Mahkeme', label: 'Yerel Mahkeme' },
-  { value: 'İstinaf', label: 'İstinaf' },
-  { value: 'Temyiz', label: 'Temyiz' },
-  { value: 'Kesinleşti', label: 'Kesinleşti' },
-  { value: 'Kapandı', label: 'Kapandı' },
-]
+export function FilterDrawer({ open, onOpenChange, filters, onApply, onClear, lawyers, statusOptions = [] }: FilterDrawerProps) {
+  const lawyerItems = [
+    { id: 'all', label: 'Tüm Avukatlar' },
+    ...lawyers.map(l => ({ id: l.id, label: l.full_name }))
+  ]
 
-export function FilterDrawer({ open, onOpenChange, filters, onApply, onClear, lawyers }: FilterDrawerProps) {
+  const statusItems = [
+    { id: 'all', label: 'Tüm Durumlar' },
+    ...statusOptions
+  ]
+
   const handleApply = () => {
     onApply(filters)
     onOpenChange(false)
@@ -55,36 +57,20 @@ export function FilterDrawer({ open, onOpenChange, filters, onApply, onClear, la
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Avukat</Label>
-            <Select
-              value={filters.lawyerFilter}
-              onValueChange={(v) => onApply({ ...filters, lawyerFilter: v })}
-            >
-              <SelectTrigger className="h-11"><SelectValue placeholder="Seçin" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm Avukatlar</SelectItem>
-                {lawyers.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>{l.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Durum</Label>
-            <Select
-              value={filters.statusFilter}
-              onValueChange={(v) => onApply({ ...filters, statusFilter: v })}
-            >
-              <SelectTrigger className="h-11"><SelectValue placeholder="Seçin" /></SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <FormFieldSelectWithId
+            label="Avukat"
+            value={filters.lawyerFilter || 'all'}
+            onValueChange={(v) => onApply({ ...filters, lawyerFilter: v || 'all' })}
+            items={lawyerItems}
+            placeholder="Seçin"
+          />
+          <FormFieldSelectWithId
+            label="Durum"
+            value={filters.statusFilter || 'all'}
+            onValueChange={(v) => onApply({ ...filters, statusFilter: v || 'all' })}
+            items={statusItems}
+            placeholder="Seçin"
+          />
         </div>
 
         <div className="flex gap-2 pt-2">

@@ -1,5 +1,4 @@
 export type EntityType = 'Gerçek Kişi' | 'Tüzel Kişi'
-export type ClientRole = 'Davacı' | 'Davalı' | 'Müdahil' | 'Şikayetçi' | 'Şüpheli'
 export type Currency = 'TRY' | 'USD' | 'EUR'
 
 export interface Case {
@@ -8,7 +7,7 @@ export interface Case {
   lawyer_id: string
   client_id: string
   opposing_party: string
-  client_role: ClientRole | string
+  client_role_id: string | null
   entity_type: EntityType | string
   court_city: string | null
   court_district: string | null
@@ -39,6 +38,7 @@ export interface Case {
   status?: { label: string }
   court_type?: { label: string }
   file_type?: { label: string }
+  client_role?: { label: string }
 }
 
 export interface CaseFilters {
