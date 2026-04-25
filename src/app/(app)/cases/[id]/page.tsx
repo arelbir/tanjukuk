@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LeanBadge } from '@/components/lean-badge'
 import { ArrowLeft, Plus } from 'lucide-react'
+import { ImportExportToolbar } from '@/components/import-export-toolbar'
+import { activityImportDefinition, downloadTemplate, executeImport, exportRows, hearingImportDefinition } from '@/lib/import-export'
 import { Case } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { HearingFormDrawer } from '@/components/hearing-form-drawer'
@@ -103,6 +105,92 @@ export default function CaseDetailPage() {
   const isPastHearing = (hearing: Hearing) => new Date(hearing.hearing_at) < new Date()
   const canEditHearing = (hearing: Hearing) => isAdmin || !isPastHearing(hearing)
 
+  const handleDownloadHearingsTemplate = () => {
+    downloadTemplate(hearingImportDefinition)
+  }
+
+  const handleExportHearings = () => {
+    exportRows(
+      hearingImportDefinition,
+      hearings.map((hearing) => ({
+        case_id: caseId,
+        hearing_at: hearing.hearing_at,
+        location: hearing.location,
+        result: hearing.result,
+        next_step: hearing.next_step,
+      })),
+      `durusmalar-${caseData?.case_code || caseId}.xlsx`
+    )
+  }
+
+  const handleDownloadActivitiesTemplate = () => {
+    downloadTemplate(activityImportDefinition)
+  }
+
+  const handleExportActivities = () => {
+    exportRows(
+      activityImportDefinition,
+      activities.map((activity) => ({
+        case_id: caseId,
+        title: activity.title,
+        activity_type_id: activity.activity_type_id,
+        scheduled_at: activity.scheduled_at,
+        duration_minutes: activity.duration_minutes,
+        location: activity.location,
+        description: activity.description,
+      })),
+      `aktiviteler-${caseData?.case_code || caseId}.xlsx`
+    )
+  }
+
+  const handleImportHearings = async (file: File) => {
+    const result = await executeImport({
+      file,
+      definition: hearingImportDefinition,
+      mapForInsert: (item) => ({ ...item, case_id: caseId, is_completed: false }),
+      insertRows: (rows) => supabase.from('hearings').insert(rows),
+      errorFileName: `durusma-import-hatalari-${caseId}.xlsx`,
+    })
+
+    if (result.invalidCount > 0) {
+      import('sonner').then(({ toast }) => toast.error(`${result.invalidCount} duruşma satırı hatalı bulundu`))
+    }
+
+    if (result.inserted > 0) {
+      import('sonner').then(({ toast }) => toast.success(`${result.inserted} duruşma içe aktarıldı`))
+      const { data } = await supabase.from('hearings').select('*').eq('case_id', caseId).order('hearing_at', { ascending: true })
+      setHearings((data as Hearing[] | null) || [])
+    }
+  }
+
+  const handleImportActivities = async (file: File) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const result = await executeImport({
+      file,
+      definition: activityImportDefinition,
+      mapForInsert: (item) => ({ ...item, case_id: caseId, created_by: user?.id, is_completed: false, completed_at: null }),
+      insertRows: (rows) => supabase.from('case_activities').insert(rows),
+      errorFileName: `aktivite-import-hatalari-${caseId}.xlsx`,
+    })
+
+    if (result.invalidCount > 0) {
+      import('sonner').then(({ toast }) => toast.error(`${result.invalidCount} aktivite satırı hatalı bulundu`))
+    }
+
+    if (result.inserted > 0) {
+      import('sonner').then(({ toast }) => toast.success(`${result.inserted} aktivite içe aktarıldı`))
+      const { data } = await supabase
+        .from('case_activities')
+        .select(`id, case_id, title, description, activity_type_id, scheduled_at, duration_minutes, location, is_completed, completed_at, activity_type:lookup_values!case_activities_activity_type_id_fkey(label)`)
+        .eq('case_id', caseId)
+        .order('scheduled_at', { ascending: true })
+      setActivities((data as CaseActivity[] | null) || [])
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -157,13 +245,24 @@ export default function CaseDetailPage() {
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-4 flex flex-row items-center justify-between">
               <CardTitle className="text-xl">Duruşmalar</CardTitle>
-              {isAdmin && (
-                <Button size="sm" onClick={() => setIsHearingDrawerOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Yeni Duruşma
-                </Button>
-              )}
+              <div className="flex flex-wrap gap-2">
+                <ImportExportToolbar
+                  onDownloadTemplate={handleDownloadHearingsTemplate}
+                  onExport={handleExportHearings}
+                  onImport={handleImportHearings}
+                  importLabel="Şablon Yükle"
+                  templateLabel="Şablon İndir"
+                  exportLabel="Duruşmaları Dışa Aktar"
+                />
+                {isAdmin && (
+                  <Button size="sm" onClick={() => setIsHearingDrawerOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Yeni Duruşma
+                  </Button>
+                )}
+              </div>
             </CardHeader>
+
             <CardContent>
               <Table>
                 <TableHeader>
@@ -207,11 +306,22 @@ export default function CaseDetailPage() {
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-4 flex flex-row items-center justify-between">
               <CardTitle className="text-xl">Aktiviteler</CardTitle>
-              <Button size="sm" onClick={() => setIsActivityDrawerOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Yeni Aktivite
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <ImportExportToolbar
+                  onDownloadTemplate={handleDownloadActivitiesTemplate}
+                  onExport={handleExportActivities}
+                  onImport={handleImportActivities}
+                  importLabel="Şablon Yükle"
+                  templateLabel="Şablon İndir"
+                  exportLabel="Aktiviteleri Dışa Aktar"
+                />
+                <Button size="sm" onClick={() => setIsActivityDrawerOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Yeni Aktivite
+                </Button>
+              </div>
             </CardHeader>
+
             <CardContent>
               <Table>
                 <TableHeader>

@@ -1,11 +1,17 @@
 import * as XLSX from 'xlsx'
-import { ImportDefinition, ImportResult } from './types'
+import { ImportDefinition, ImportFailure, ImportResult } from './types'
+
+function createInstructionsSheet(definition: { instructions?: string[] }) {
+  const instructionRows = (definition.instructions || ['Bu şablonu doldurup tekrar sisteme yükleyin.']).map((message) => ({ instruction: message }))
+  return XLSX.utils.json_to_sheet(instructionRows, { header: ['instruction'] })
+}
 
 export function createWorkbookFromDefinition<T>(definition: ImportDefinition<T>, data: T[]) {
   const rows = data.map((item) => definition.toRow(item))
   const worksheet = XLSX.utils.json_to_sheet(rows, { header: definition.headers })
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, definition.sheetName)
+  XLSX.utils.book_append_sheet(workbook, createInstructionsSheet(definition), 'Instructions')
   return workbook
 }
 
@@ -13,6 +19,20 @@ export function createTemplateWorkbook<T>(definition: ImportDefinition<T>) {
   const worksheet = XLSX.utils.json_to_sheet([], { header: definition.headers })
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, definition.sheetName)
+  XLSX.utils.book_append_sheet(workbook, createInstructionsSheet(definition), 'Instructions')
+  return workbook
+}
+
+export function createErrorWorkbook(invalid: ImportFailure[]) {
+  const worksheet = XLSX.utils.json_to_sheet(
+    invalid.map((item) => ({
+      rowNumber: item.rowNumber,
+      errors: item.errors.join(' | '),
+      values: JSON.stringify(item.values),
+    }))
+  )
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Errors')
   return workbook
 }
 
@@ -38,7 +58,7 @@ export function parseWorkbook<T>(file: File, definition: ImportDefinition<T>): P
 
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' })
         const valid: T[] = []
-        const invalid: Array<{ rowNumber: number; values: Record<string, unknown>; errors: string[] }> = []
+        const invalid: ImportFailure[] = []
 
         rows.forEach((row, index) => {
           const rowNumber = index + 2

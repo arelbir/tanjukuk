@@ -13,9 +13,30 @@ import { FormFieldSelectWithId } from '@/components/form-field-select'
 import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import { PAYMENT_STATUS_MAPPING, getFieldLabel } from '@/types/mappings'
+import { ImportExportToolbar } from '@/components/import-export-toolbar'
+import { executeImport, exportRows, downloadTemplate, incomeImportDefinition } from '@/lib/import-export'
+
+interface IncomeRelation {
+  label?: string
+  name?: string
+}
+
+interface IncomeRecordRow {
+  id: string
+  client_id: string | null
+  category_id: string
+  record_date: string
+  amount: number
+  currency: string
+  payment_status: string
+  client?: IncomeRelation | IncomeRelation[] | null
+  category?: IncomeRelation | IncomeRelation[] | null
+}
 
 interface Income {
   id: string
+  client_id: string | null
+  category_id: string
   record_date: string
   amount: number
   currency: string
@@ -31,6 +52,18 @@ interface FormData {
   amount: string
   payment_status: string
   description: string
+}
+
+function normalizeIncomeClient(relation?: IncomeRelation | IncomeRelation[] | null) {
+  if (!relation) return undefined
+  const value = Array.isArray(relation) ? relation[0] : relation
+  return value?.name ? { name: value.name } : undefined
+}
+
+function normalizeIncomeCategory(relation?: IncomeRelation | IncomeRelation[] | null) {
+  if (!relation) return undefined
+  const value = Array.isArray(relation) ? relation[0] : relation
+  return value?.label ? { label: value.label } : undefined
 }
 
 export default function IncomePage() {
@@ -50,7 +83,7 @@ export default function IncomePage() {
   useEffect(() => {
     async function loadData() {
       let query = supabase.from('income_records')
-        .select(`*, client:clients(name), category:lookup_values!income_records_category_id_fkey(label)`)
+        .select(`id, client_id, category_id, record_date, amount, currency, payment_status, client:clients(name), category:lookup_values!income_records_category_id_fkey(label)`)
         .order('record_date', { ascending: false })
       if (search) query = query.or(`description.ilike.%${search}%,client.name.ilike.%${search}%`)
       
@@ -60,7 +93,19 @@ export default function IncomePage() {
         supabase.from('lookup_values').select('id, label').eq('group_key', 'income_category').eq('is_active', true).order('sort_order')
       ])
       
-      setIncomes(incomesRes.data || [])
+      const mappedIncomes: Income[] = ((incomesRes.data as IncomeRecordRow[] | null) || []).map((income) => ({
+        id: income.id,
+        client_id: income.client_id,
+        category_id: income.category_id,
+        record_date: income.record_date,
+        amount: income.amount,
+        currency: income.currency,
+        payment_status: income.payment_status,
+        client: normalizeIncomeClient(income.client),
+        category: normalizeIncomeCategory(income.category),
+      }))
+
+      setIncomes(mappedIncomes)
       setClients(clientsRes.data || [])
       setCategories(catsRes.data || [])
       setLoading(false)
@@ -94,15 +139,73 @@ export default function IncomePage() {
     }
   }
 
+  const handleDownloadTemplate = () => {
+    downloadTemplate(incomeImportDefinition)
+  }
+
+  const handleExport = () => {
+    exportRows(
+      incomeImportDefinition,
+      incomes.map((income) => ({
+        client_id: income.client_id,
+        category_id: income.category_id,
+        record_date: income.record_date,
+        amount: income.amount,
+        payment_status: income.payment_status,
+        description: null,
+      })),
+      `gelirler-${new Date().toISOString().slice(0, 10)}.xlsx`
+    )
+  }
+
+  const handleImport = async (file: File) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const result = await executeImport({
+      file,
+      definition: incomeImportDefinition,
+      insertRows: (rows) =>
+        supabase.from('income_records').insert(
+          rows.map((item) => ({
+            ...item,
+            recorded_by: user?.id,
+          }))
+        ),
+      errorFileName: 'gelir-import-hatalari.xlsx',
+    })
+
+    if (result.invalidCount > 0) {
+      toast.error(`${result.invalidCount} satır hatalı bulundu ve hata dosyası indirildi`)
+    }
+
+  if (result.inserted > 0) {
+      toast.success(`${result.inserted} gelir kaydı içe aktarıldı`)
+      const { data } = await supabase.from('income_records').select(`*, client:clients(name), category:lookup_values!income_records_category_id_fkey(label)`).order('record_date', { ascending: false })
+      setIncomes(data || [])
+    }
+  }
+
   const totalAmount = incomes.reduce((sum, i) => sum + i.amount, 0)
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-display">Gelirler</h1>
-        <Button onClick={() => drawer.openForCreate()}>
-          <Plus className="h-4 w-4 mr-2" /> Yeni Gelir
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <ImportExportToolbar
+            onDownloadTemplate={handleDownloadTemplate}
+            onExport={handleExport}
+            onImport={handleImport}
+            templateLabel="Şablon İndir"
+            importLabel="Şablon Yükle"
+            exportLabel="Gelirleri Dışa Aktar"
+          />
+          <Button onClick={() => drawer.openForCreate()}>
+            <Plus className="h-4 w-4 mr-2" /> Yeni Gelir
+          </Button>
+        </div>
       </div>
 
       <FormDrawer

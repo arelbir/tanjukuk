@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { EventClickArg, EventDropArg } from '@fullcalendar/core'
 import FullCalendar from '@fullcalendar/react'
@@ -100,6 +101,7 @@ function getClientName(client: CalendarRelation | CalendarRelation[] | null | un
 }
 
 export default function CalendarPage() {
+  const router = useRouter()
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [lawyers, setLawyers] = useState<User[]>([])
   const [selectedLawyers, setSelectedLawyers] = useState<string[]>([])
@@ -200,7 +202,7 @@ export default function CalendarPage() {
   const handleEventClick = (info: EventClickArg) => {
     const caseId = String(info.event.extendedProps.caseId || '')
     if (!caseId) return
-    window.location.href = `/cases/${caseId}`
+    router.push(`/cases/${caseId}`)
   }
 
   const handleEventDrop = async (info: EventDropArg) => {

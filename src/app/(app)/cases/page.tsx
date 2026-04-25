@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,8 +20,19 @@ import { FormFieldSelectWithId } from '@/components/form-field-select'
 import { useCases } from '@/hooks'
 import { useMultipleLookups } from '@/hooks/useLookups'
 import { Plus, Search } from 'lucide-react'
+import { toast } from 'sonner'
+import { ImportExportToolbar } from '@/components/import-export-toolbar'
+import {
+  caseImportDefinition,
+  createTemplateWorkbook,
+  createWorkbookFromDefinition,
+  downloadWorkbook,
+  executeImport,
+} from '@/lib/import-export'
 
 export default function CasesPage() {
+  const router = useRouter()
+  const supabase = createClient()
   const { lookups } = useMultipleLookups(['case_status'])
   const statusOptions = lookups['case_status'] || []
   
@@ -44,11 +57,81 @@ export default function CasesPage() {
     ...statusOptions
   ]
 
+  const handleDownloadTemplate = () => {
+    const workbook = createTemplateWorkbook(caseImportDefinition)
+    downloadWorkbook(workbook, caseImportDefinition.fileName)
+  }
+
+  const handleExport = () => {
+    const workbook = createWorkbookFromDefinition(
+      caseImportDefinition,
+      cases.map((item) => ({
+        lawyer_id: item.lawyer_id,
+        client_id: item.client_id,
+        opposing_party: item.opposing_party,
+        client_role_id: item.client_role_id,
+        entity_type: item.entity_type,
+        court_city: item.court_city,
+        court_district: item.court_district,
+        court_type_id: item.court_type_id,
+        court_no: item.court_no,
+        file_year: item.file_year,
+        file_no: item.file_no,
+        file_type_id: item.file_type_id,
+        case_type_id: item.case_type_id,
+        status_id: item.status_id,
+        opened_at: item.opened_at,
+        case_value: item.case_value,
+        currency: item.currency,
+        description: item.description,
+        notes: item.notes,
+      }))
+    )
+    downloadWorkbook(workbook, `dosyalar-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
+  const handleImport = async (file: File) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const result = await executeImport({
+      file,
+      definition: caseImportDefinition,
+      insertRows: (rows) =>
+        supabase.from('cases').insert(
+          rows.map((item) => ({
+            ...item,
+            created_by: user?.id,
+          }))
+        ),
+      errorFileName: 'dosya-import-hatalari.xlsx',
+    })
+
+    if (result.invalidCount > 0) {
+      toast.error(`${result.invalidCount} satır hatalı bulundu ve hata dosyası indirildi`)
+    }
+
+    if (result.inserted > 0) {
+      toast.success(`${result.inserted} dosya içe aktarıldı`)
+      window.location.reload()
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-3xl font-display">Dosyalar</h1>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <ImportExportToolbar
+            onDownloadTemplate={handleDownloadTemplate}
+            onExport={handleExport}
+            onImport={handleImport}
+            templateLabel="Şablon İndir"
+            importLabel="Şablon Yükle"
+            exportLabel="Dosyaları Dışa Aktar"
+          />
+
           <Link href="/cases/new">
             <Button className="bg-primary hover:bg-primary/90">
               <Plus className="h-4 w-4 mr-2" />
@@ -120,7 +203,7 @@ export default function CasesPage() {
                 <TableRow 
                   key={c.id}
                   className="cursor-pointer hover:bg-muted/50 border-l-4 border-transparent hover:border-l-primary"
-                  onClick={() => window.location.href = `/cases/${c.id}`}
+                  onClick={() => router.push(`/cases/${c.id}`)}
                 >
                   <TableCell className="font-medium">{c.case_code}</TableCell>
                   <TableCell>{c.lawyer?.full_name}</TableCell>

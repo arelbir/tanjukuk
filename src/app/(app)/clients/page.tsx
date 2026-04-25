@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -48,6 +49,7 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [saving, setSaving] = useState(false)
+  const router = useRouter()
   const supabase = createClient()
 
   const drawer = useFormDrawer<FormData>({
@@ -230,7 +232,7 @@ export default function ClientsPage() {
               <TableRow><TableCell colSpan={5} className="text-center py-8">Müvekkil bulunamadı</TableCell></TableRow>
             ) : (
               clients.map((client) => (
-                <TableRow key={client.id} className="cursor-pointer hover:bg-muted/50" onClick={() => window.location.href = `/clients/${client.id}`}>
+                <TableRow key={client.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/clients/${client.id}`)}>
                   <TableCell className="font-medium">{client.name}</TableCell>
                   <TableCell><Badge variant="outline">{client.type === 'individual' ? 'Bireysel' : 'Şirket'}</Badge></TableCell>
                   <TableCell>{client.phone || '-'}</TableCell>

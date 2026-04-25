@@ -15,6 +15,8 @@ import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import { PAYMENT_METHOD_MAPPING, getFieldLabel } from '@/types/mappings'
 import { useAuth } from '@/hooks/useAuth'
+import { ImportExportToolbar } from '@/components/import-export-toolbar'
+import { downloadTemplate, executeImport, expenseImportDefinition, exportRows } from '@/lib/import-export'
 
 interface ExpenseRelation {
   label: string
@@ -22,6 +24,8 @@ interface ExpenseRelation {
 
 interface ExpenseRecordRow {
   id: string
+  category_id?: string | null
+  sub_category_id?: string | null
   record_date: string
   amount: number
   currency: string
@@ -33,6 +37,8 @@ interface ExpenseRecordRow {
 
 interface Expense {
   id: string
+  category_id?: string | null
+  sub_category_id?: string | null
   record_date: string
   amount: number
   currency: string
@@ -61,8 +67,8 @@ function normalizeRelation(relation?: ExpenseRelation | ExpenseRelation[] | null
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
-  const [categories, setCategories] = useState<{id: string, label: string}[]>([])
-  const [subCategories, setSubCategories] = useState<{id: string, label: string}[]>([])
+  const [categories, setCategories] = useState<{ id: string; label: string }[]>([])
+  const [subCategories, setSubCategories] = useState<{ id: string; label: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [saving, setSaving] = useState(false)
@@ -71,25 +77,36 @@ export default function ExpensesPage() {
   const supabase = createClient()
 
   const drawer = useFormDrawer<FormData>({
-    expense_type: 'kurum', category_id: '', sub_category_id: '', record_date: new Date().toISOString().split('T')[0],
-    amount: '', payment_method: 'cash', description: ''
+    expense_type: 'kurum',
+    category_id: '',
+    sub_category_id: '',
+    record_date: new Date().toISOString().split('T')[0],
+    amount: '',
+    payment_method: 'cash',
+    description: '',
   })
 
   useEffect(() => {
     async function loadData() {
-      let query = supabase.from('expense_records')
-        .select(`id, record_date, amount, currency, payment_method, expense_type, category:lookup_values!expense_records_category_id_fkey(label), sub_category:lookup_values!expense_records_sub_category_id_fkey(label)`)
+      let query = supabase
+        .from('expense_records')
+        .select(`id, category_id, sub_category_id, record_date, amount, currency, payment_method, expense_type, category:lookup_values!expense_records_category_id_fkey(label), sub_category:lookup_values!expense_records_sub_category_id_fkey(label)`)
         .eq('expense_type', expenseType)
         .order('record_date', { ascending: false })
-      if (search) query = query.or(`description.ilike.%${search}%,document_ref.ilike.%${search}%`)
-      
+
+      if (search) {
+        query = query.or(`description.ilike.%${search}%,document_ref.ilike.%${search}%`)
+      }
+
       const [expensesRes, catsRes] = await Promise.all([
         query,
-        supabase.from('lookup_values').select('id, label').eq('group_key', 'expense_category').eq('is_active', true).order('sort_order')
+        supabase.from('lookup_values').select('id, label').eq('group_key', 'expense_category').eq('is_active', true).order('sort_order'),
       ])
-      
+
       const mapped: Expense[] = ((expensesRes.data as ExpenseRecordRow[] | null) || []).map((expense) => ({
         id: expense.id,
+        category_id: expense.category_id,
+        sub_category_id: expense.sub_category_id,
         record_date: expense.record_date,
         amount: expense.amount,
         currency: expense.currency,
@@ -98,29 +115,61 @@ export default function ExpensesPage() {
         category: normalizeRelation(expense.category),
         sub_category: normalizeRelation(expense.sub_category),
       }))
-      
+
       setExpenses(mapped)
       setCategories(catsRes.data || [])
       setLoading(false)
     }
-    loadData()
-  }, [supabase, search, expenseType])
+
+    void loadData()
+  }, [expenseType, search, supabase])
 
   useEffect(() => {
-    if (drawer.values.category_id) {
-      const cat = categories.find(c => c.id === drawer.values.category_id)
-      if (cat) {
-        const key = cat.label.toLowerCase().replace(/[^a-z]/g, '')
-        supabase.from('lookup_values').select('id, label').like('group_key', `expense_sub_${key}`).eq('is_active', true).order('sort_order')
-          .then(res => setSubCategories(res.data || []))
-      }
-    }
-  }, [drawer.values.category_id, supabase, categories])
+    if (!drawer.values.category_id) return
+
+    const cat = categories.find((item) => item.id === drawer.values.category_id)
+    if (!cat) return
+
+    const key = cat.label.toLowerCase().replace(/[^a-z]/g, '')
+    void supabase
+      .from('lookup_values')
+      .select('id, label')
+      .like('group_key', `expense_sub_${key}`)
+      .eq('is_active', true)
+      .order('sort_order')
+      .then((res) => setSubCategories(res.data || []))
+  }, [categories, drawer.values.category_id, supabase])
+
+  const refreshExpenses = async (targetExpenseType = expenseType) => {
+    const { data } = await supabase
+      .from('expense_records')
+      .select(`id, category_id, sub_category_id, record_date, amount, currency, payment_method, expense_type, category:lookup_values!expense_records_category_id_fkey(label), sub_category:lookup_values!expense_records_sub_category_id_fkey(label)`)
+      .eq('expense_type', targetExpenseType)
+      .order('record_date', { ascending: false })
+
+    const mapped: Expense[] = ((data as ExpenseRecordRow[] | null) || []).map((expense) => ({
+      id: expense.id,
+      category_id: expense.category_id,
+      sub_category_id: expense.sub_category_id,
+      record_date: expense.record_date,
+      amount: expense.amount,
+      currency: expense.currency,
+      payment_method: expense.payment_method,
+      expense_type: expense.expense_type || 'kurum',
+      category: normalizeRelation(expense.category),
+      sub_category: normalizeRelation(expense.sub_category),
+    }))
+
+    setExpenses(mapped)
+  }
 
   const handleSubmit = async () => {
     setSaving(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       const { error } = await supabase.from('expense_records').insert({
         recorded_by: user?.id,
         expense_type: drawer.values.expense_type,
@@ -129,26 +178,14 @@ export default function ExpensesPage() {
         record_date: drawer.values.record_date,
         amount: parseFloat(drawer.values.amount),
         payment_method: drawer.values.payment_method,
-        description: drawer.values.description || null
+        description: drawer.values.description || null,
       })
+
       if (error) throw error
+
       toast.success('Gider eklendi!')
       drawer.close()
-      const { data } = await supabase.from('expense_records')
-        .select(`id, record_date, amount, currency, payment_method, expense_type, category:lookup_values!expense_records_category_id_fkey(label), sub_category:lookup_values!expense_records_sub_category_id_fkey(label)`)
-        .eq('expense_type', drawer.values.expense_type)
-        .order('record_date', { ascending: false })
-      const mapped: Expense[] = ((data as ExpenseRecordRow[] | null) || []).map((expense) => ({
-        id: expense.id,
-        record_date: expense.record_date,
-        amount: expense.amount,
-        currency: expense.currency,
-        payment_method: expense.payment_method,
-        expense_type: expense.expense_type || 'kurum',
-        category: normalizeRelation(expense.category),
-        sub_category: normalizeRelation(expense.sub_category),
-      }))
-      setExpenses(mapped)
+      await refreshExpenses(drawer.values.expense_type)
     } catch (error: unknown) {
       const err = error as { message: string }
       toast.error('Hata: ' + err.message)
@@ -157,17 +194,75 @@ export default function ExpensesPage() {
     }
   }
 
-  const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0)
   const kurumTotal = expenseType === 'kurum' ? totalAmount : 0
   const kisiselTotal = expenseType === 'kisisel' ? totalAmount : 0
+
+  const handleDownloadTemplate = () => {
+    downloadTemplate(expenseImportDefinition)
+  }
+
+  const handleExport = () => {
+    exportRows(
+      expenseImportDefinition,
+      expenses.map((expense) => ({
+        expense_type: expense.expense_type as 'kurum' | 'kisisel',
+        category_id: expense.category_id || '',
+        sub_category_id: expense.sub_category_id || null,
+        record_date: expense.record_date,
+        amount: expense.amount,
+        payment_method: expense.payment_method || '',
+        description: null,
+      })),
+      `giderler-${expenseType}-${new Date().toISOString().slice(0, 10)}.xlsx`
+    )
+  }
+
+  const handleImport = async (file: File) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const result = await executeImport({
+      file,
+      definition: expenseImportDefinition,
+      insertRows: (rows) =>
+        supabase.from('expense_records').insert(
+          rows.map((item) => ({
+            ...item,
+            recorded_by: user?.id,
+          }))
+        ),
+      errorFileName: 'gider-import-hatalari.xlsx',
+    })
+
+    if (result.invalidCount > 0) {
+      toast.error(`${result.invalidCount} satır hatalı bulundu ve hata dosyası indirildi`)
+    }
+
+    if (result.inserted > 0) {
+      toast.success(`${result.inserted} gider kaydı içe aktarıldı`)
+      await refreshExpenses(expenseType)
+    }
+  }
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-display">Giderler</h1>
-        <Button onClick={() => drawer.openForCreate()}>
-          <Plus className="h-4 w-4 mr-2" /> Yeni Gider
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <ImportExportToolbar
+            onDownloadTemplate={handleDownloadTemplate}
+            onExport={handleExport}
+            onImport={handleImport}
+            templateLabel="Şablon İndir"
+            importLabel="Şablon Yükle"
+            exportLabel="Giderleri Dışa Aktar"
+          />
+          <Button onClick={() => drawer.openForCreate()}>
+            <Plus className="h-4 w-4 mr-2" /> Yeni Gider
+          </Button>
+        </div>
       </div>
 
       <FormDrawer
@@ -181,21 +276,11 @@ export default function ExpensesPage() {
             <Label>Gider Türü</Label>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="radio" 
-                  name="expense_type" 
-                  checked={drawer.values.expense_type === 'kurum'}
-                  onChange={() => drawer.updateValues({ expense_type: 'kurum' })}
-                />
+                <input type="radio" name="expense_type" checked={drawer.values.expense_type === 'kurum'} onChange={() => drawer.updateValues({ expense_type: 'kurum' })} />
                 <span>Kurum Gideri</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="radio" 
-                  name="expense_type" 
-                  checked={drawer.values.expense_type === 'kisisel'}
-                  onChange={() => drawer.updateValues({ expense_type: 'kisisel' })}
-                />
+                <input type="radio" name="expense_type" checked={drawer.values.expense_type === 'kisisel'} onChange={() => drawer.updateValues({ expense_type: 'kisisel' })} />
                 <span>Kişisel Gider</span>
               </label>
             </div>
@@ -203,21 +288,11 @@ export default function ExpensesPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="record_date">Tarih</Label>
-              <Input 
-                id="record_date"
-                type="date" 
-                value={drawer.values.record_date} 
-                onChange={(e) => drawer.updateValues({ record_date: e.target.value })} 
-              />
+              <Input id="record_date" type="date" value={drawer.values.record_date} onChange={(e) => drawer.updateValues({ record_date: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="amount">Tutar</Label>
-              <Input 
-                id="amount"
-                type="number" 
-                value={drawer.values.amount} 
-                onChange={(e) => drawer.updateValues({ amount: e.target.value })} 
-              />
+              <Input id="amount" type="number" value={drawer.values.amount} onChange={(e) => drawer.updateValues({ amount: e.target.value })} />
             </div>
           </div>
           <FormFieldSelectWithId
@@ -246,12 +321,7 @@ export default function ExpensesPage() {
           />
           <div className="space-y-2">
             <Label htmlFor="description">Açıklama</Label>
-            <Input
-              id="description"
-              placeholder="Gider açıklaması..."
-              value={drawer.values.description}
-              onChange={(e) => drawer.updateValues({ description: e.target.value })}
-            />
+            <Input id="description" placeholder="Gider açıklaması..." value={drawer.values.description} onChange={(e) => drawer.updateValues({ description: e.target.value })} />
           </div>
           <div className="flex gap-2">
             <Button className="flex-1" onClick={handleSubmit} disabled={saving || !drawer.values.amount}>

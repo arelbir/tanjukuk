@@ -7,10 +7,11 @@ import { Upload, Download, FileSpreadsheet } from 'lucide-react'
 interface ImportExportToolbarProps {
   onDownloadTemplate: () => void
   onExport: () => void
-  onImport: (file: File) => Promise<void> | void
+  onImport?: (file: File) => Promise<void> | void
   importLabel?: string
   exportLabel?: string
   templateLabel?: string
+  importDisabled?: boolean
 }
 
 export function ImportExportToolbar({
@@ -20,13 +21,13 @@ export function ImportExportToolbar({
   importLabel = 'Şablon Yükle',
   exportLabel = 'Excel Dışa Aktar',
   templateLabel = 'Şablon İndir',
+  importDisabled = false,
 }: ImportExportToolbarProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (!file) return
-
+    if (!file || !onImport) return
     await onImport(file)
     event.target.value = ''
   }
@@ -44,7 +45,7 @@ export function ImportExportToolbar({
         <Download className="h-4 w-4 mr-2" />
         {templateLabel}
       </Button>
-      <Button variant="outline" onClick={() => inputRef.current?.click()}>
+      <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={importDisabled || !onImport}>
         <Upload className="h-4 w-4 mr-2" />
         {importLabel}
       </Button>
