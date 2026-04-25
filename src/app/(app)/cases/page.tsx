@@ -23,11 +23,14 @@ import { Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { ImportExportToolbar } from '@/components/import-export-toolbar'
 import {
+  buildClientNameResolverMap,
+  buildLookupResolverMap,
+  buildUserEmailResolverMap,
   caseImportDefinition,
   createTemplateWorkbook,
   createWorkbookFromDefinition,
   downloadWorkbook,
-  executeImport,
+  executeResolvedImport,
 } from '@/lib/import-export'
 
 export default function CasesPage() {
@@ -66,20 +69,20 @@ export default function CasesPage() {
     const workbook = createWorkbookFromDefinition(
       caseImportDefinition,
       cases.map((item) => ({
-        lawyer_id: item.lawyer_id,
-        client_id: item.client_id,
+        lawyer_email: item.lawyer?.full_name || '',
+        client_name: item.client?.name || '',
         opposing_party: item.opposing_party,
-        client_role_id: item.client_role_id,
+        client_role_label: item.client_role?.label || null,
         entity_type: item.entity_type,
         court_city: item.court_city,
         court_district: item.court_district,
-        court_type_id: item.court_type_id,
+        court_type_label: item.court_type?.label || null,
         court_no: item.court_no,
         file_year: item.file_year,
         file_no: item.file_no,
-        file_type_id: item.file_type_id,
-        case_type_id: item.case_type_id,
-        status_id: item.status_id,
+        file_type_label: item.file_type?.label || null,
+        case_type_label: item.case_type?.label || null,
+        status_label: item.status?.label || null,
         opened_at: item.opened_at,
         case_value: item.case_value,
         currency: item.currency,
@@ -95,9 +98,65 @@ export default function CasesPage() {
       data: { user },
     } = await supabase.auth.getUser()
 
-    const result = await executeImport({
+    const [lawyerMap, clientMap, caseTypeMap, statusMap, courtTypeMap, fileTypeMap, clientRoleMap] = await Promise.all([
+      buildUserEmailResolverMap(supabase, 'lawyer'),
+      buildClientNameResolverMap(supabase),
+      buildLookupResolverMap(supabase, 'case_type'),
+      buildLookupResolverMap(supabase, 'case_status'),
+      buildLookupResolverMap(supabase, 'court_type'),
+      buildLookupResolverMap(supabase, 'file_type'),
+      buildLookupResolverMap(supabase, 'client_role'),
+    ])
+
+    const result = await executeResolvedImport({
       file,
       definition: caseImportDefinition,
+      resolveRow: async (row) => {
+        const errors: string[] = []
+        const lawyerId = lawyerMap.get(row.lawyer_email.trim().toLocaleLowerCase('tr-TR')) || null
+        const clientId = clientMap.get(row.client_name.trim().toLocaleLowerCase('tr-TR')) || null
+        const caseTypeId = row.case_type_label ? caseTypeMap.get(row.case_type_label.trim().toLocaleLowerCase('tr-TR')) || null : null
+        const statusId = row.status_label ? statusMap.get(row.status_label.trim().toLocaleLowerCase('tr-TR')) || null : null
+        const courtTypeId = row.court_type_label ? courtTypeMap.get(row.court_type_label.trim().toLocaleLowerCase('tr-TR')) || null : null
+        const fileTypeId = row.file_type_label ? fileTypeMap.get(row.file_type_label.trim().toLocaleLowerCase('tr-TR')) || null : null
+        const clientRoleId = row.client_role_label ? clientRoleMap.get(row.client_role_label.trim().toLocaleLowerCase('tr-TR')) || null : null
+
+        if (!lawyerId) errors.push('lawyer_email eşleşmedi')
+        if (!clientId) errors.push('client_name eşleşmedi')
+        if (row.case_type_label && !caseTypeId) errors.push('case_type_label eşleşmedi')
+        if (row.status_label && !statusId) errors.push('status_label eşleşmedi')
+        if (row.court_type_label && !courtTypeId) errors.push('court_type_label eşleşmedi')
+        if (row.file_type_label && !fileTypeId) errors.push('file_type_label eşleşmedi')
+        if (row.client_role_label && !clientRoleId) errors.push('client_role_label eşleşmedi')
+
+        if (errors.length > 0) {
+          return { errors }
+        }
+
+        return {
+          value: {
+            lawyer_id: lawyerId,
+            client_id: clientId,
+            opposing_party: row.opposing_party,
+            client_role_id: clientRoleId,
+            entity_type: row.entity_type,
+            court_city: row.court_city,
+            court_district: row.court_district,
+            court_type_id: courtTypeId,
+            court_no: row.court_no,
+            file_year: row.file_year,
+            file_no: row.file_no,
+            file_type_id: fileTypeId,
+            case_type_id: caseTypeId,
+            status_id: statusId,
+            opened_at: row.opened_at,
+            case_value: row.case_value,
+            currency: row.currency,
+            description: row.description,
+            notes: row.notes,
+          },
+        }
+      },
       insertRows: (rows) =>
         supabase.from('cases').insert(
           rows.map((item) => ({

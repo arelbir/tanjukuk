@@ -109,7 +109,45 @@ Admin-only alanlar:
 
 Not: Proxy yalnızca ilk koruma katmanıdır. Hassas route handler'larda ayrıca rol kontrolü yapılır.
 
-## CI
+## Excel import / export
+
+Sistem, modül bazlı Excel aktarımını ortak bir import-export katmanı üzerinden yapar.
+
+Desteklenen modüller:
+
+- Müvekkiller
+- Dosyalar
+- Gelirler
+- Giderler
+- Duruşmalar
+- Aktiviteler
+
+Her modülde şu akış bulunur:
+
+- Şablon indir
+- Excel dışa aktar
+- Excel yükle / toplu içe aktar
+
+Import sırasında sistem satır bazlı doğrulama yapar. Hatalı satırlar bulunursa otomatik bir hata workbook'u indirilir.
+
+### Resolver tabanlı ikinci faz
+
+Import şablonları artık mümkün olduğunca insan dostu kolonlarla çalışır. İçeride sistem bu alanları gerçek ID değerlerine çözer.
+
+Örnekler:
+
+- `lawyer_email` → `users.id`
+- `client_name` → `clients.id`
+- `case_type_label` → `lookup_values.id`
+- `category_label` → `lookup_values.id`
+- `case_code` → `cases.id`
+
+Bu sayede kullanıcıların UUID bilmesi gerekmez.
+
+### Önemli sınırlama
+
+Resolver yaklaşımı eşleşen kayıtların sistemde önceden var olmasını bekler. Örneğin bir case import satırı içindeki `client_name` sistemde karşılık bulmuyorsa satır hata dosyasına düşer.
+
 
 GitHub Actions workflow dosyası `.github/workflows/ci.yml` altında bulunur.
 

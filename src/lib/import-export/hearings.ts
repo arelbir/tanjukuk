@@ -1,7 +1,7 @@
 import { ImportDefinition } from './types'
 
 export interface HearingImportRow {
-  case_id: string
+  case_code: string
   hearing_at: string
   location: string | null
   result: string | null
@@ -16,22 +16,22 @@ function normalizeString(value: unknown) {
 export const hearingImportDefinition: ImportDefinition<HearingImportRow> = {
   fileName: 'durusma-sablon.xlsx',
   sheetName: 'Duruşmalar',
-  headers: ['case_id', 'hearing_at', 'location', 'result', 'next_step'],
-  instructions: ['case_id ve hearing_at zorunludur. hearing_at ISO datetime formatında olmalıdır.'],
+  headers: ['case_code', 'hearing_at', 'location', 'result', 'next_step'],
+  instructions: ['case_code sistemdeki dosya koduyla eşleşmelidir. hearing_at ISO datetime formatında olmalıdır.'],
   toRow: (item) => ({ ...item }),
   fromRow: (row) => {
-    const case_id = String(row.case_id || '').trim()
+    const case_code = String(row.case_code || '').trim()
     const hearing_at = String(row.hearing_at || '').trim()
     const errors: string[] = []
 
-    if (!case_id) errors.push('case_id zorunludur')
+    if (!case_code) errors.push('case_code zorunludur')
     if (!hearing_at) errors.push('hearing_at zorunludur')
 
     if (errors.length > 0) return { errors }
 
     return {
       value: {
-        case_id,
+        case_code,
         hearing_at,
         location: normalizeString(row.location),
         result: normalizeString(row.result),

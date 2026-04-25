@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LeanBadge } from '@/components/lean-badge'
 import { ArrowLeft, Plus } from 'lucide-react'
 import { ImportExportToolbar } from '@/components/import-export-toolbar'
-import { activityImportDefinition, downloadTemplate, executeImport, exportRows, hearingImportDefinition } from '@/lib/import-export'
+import { activityImportDefinition, buildCaseCodeResolverMap, buildLookupResolverMap, downloadTemplate, executeResolvedImport, exportRows, hearingImportDefinition } from '@/lib/import-export'
 import { Case } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { HearingFormDrawer } from '@/components/hearing-form-drawer'
@@ -113,7 +113,7 @@ export default function CaseDetailPage() {
     exportRows(
       hearingImportDefinition,
       hearings.map((hearing) => ({
-        case_id: caseId,
+        case_code: caseData?.case_code || caseId,
         hearing_at: hearing.hearing_at,
         location: hearing.location,
         result: hearing.result,
@@ -131,9 +131,9 @@ export default function CaseDetailPage() {
     exportRows(
       activityImportDefinition,
       activities.map((activity) => ({
-        case_id: caseId,
+        case_code: caseData?.case_code || caseId,
         title: activity.title,
-        activity_type_id: activity.activity_type_id,
+        activity_type_label: activity.activity_type?.label || null,
         scheduled_at: activity.scheduled_at,
         duration_minutes: activity.duration_minutes,
         location: activity.location,
@@ -144,10 +144,24 @@ export default function CaseDetailPage() {
   }
 
   const handleImportHearings = async (file: File) => {
-    const result = await executeImport({
+    const caseMap = await buildCaseCodeResolverMap(supabase)
+    const result = await executeResolvedImport({
       file,
       definition: hearingImportDefinition,
-      mapForInsert: (item) => ({ ...item, case_id: caseId, is_completed: false }),
+      resolveRow: async (row) => {
+        const caseIdValue = caseMap.get(row.case_code.trim().toLocaleLowerCase('tr-TR')) || null
+        if (!caseIdValue) return { errors: ['case_code eşleşmedi'] }
+        return {
+          value: {
+            case_id: caseIdValue,
+            hearing_at: row.hearing_at,
+            location: row.location,
+            result: row.result,
+            next_step: row.next_step,
+            is_completed: false,
+          },
+        }
+      },
       insertRows: (rows) => supabase.from('hearings').insert(rows),
       errorFileName: `durusma-import-hatalari-${caseId}.xlsx`,
     })
@@ -168,10 +182,38 @@ export default function CaseDetailPage() {
       data: { user },
     } = await supabase.auth.getUser()
 
-    const result = await executeImport({
+    const [caseMap, activityTypeMap] = await Promise.all([
+      buildCaseCodeResolverMap(supabase),
+      buildLookupResolverMap(supabase, 'activity_type'),
+    ])
+
+    const result = await executeResolvedImport({
       file,
       definition: activityImportDefinition,
-      mapForInsert: (item) => ({ ...item, case_id: caseId, created_by: user?.id, is_completed: false, completed_at: null }),
+      resolveRow: async (row) => {
+        const errors: string[] = []
+        const caseIdValue = caseMap.get(row.case_code.trim().toLocaleLowerCase('tr-TR')) || null
+        const activityTypeId = row.activity_type_label ? activityTypeMap.get(row.activity_type_label.trim().toLocaleLowerCase('tr-TR')) || null : null
+
+        if (!caseIdValue) errors.push('case_code eşleşmedi')
+        if (row.activity_type_label && !activityTypeId) errors.push('activity_type_label eşleşmedi')
+        if (errors.length > 0) return { errors }
+
+        return {
+          value: {
+            case_id: caseIdValue,
+            title: row.title,
+            activity_type_id: activityTypeId,
+            scheduled_at: row.scheduled_at,
+            duration_minutes: row.duration_minutes,
+            location: row.location,
+            description: row.description,
+            created_by: user?.id,
+            is_completed: false,
+            completed_at: null,
+          },
+        }
+      },
       insertRows: (rows) => supabase.from('case_activities').insert(rows),
       errorFileName: `aktivite-import-hatalari-${caseId}.xlsx`,
     })

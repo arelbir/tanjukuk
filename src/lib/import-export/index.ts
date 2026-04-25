@@ -1,6 +1,7 @@
 export * from './types'
 export * from './xlsx'
 export * from './service'
+export * from './resolvers'
 export * from './clients'
 export * from './cases'
 export * from './income'

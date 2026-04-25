@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import { PAYMENT_STATUS_MAPPING, getFieldLabel } from '@/types/mappings'
 import { ImportExportToolbar } from '@/components/import-export-toolbar'
-import { executeImport, exportRows, downloadTemplate, incomeImportDefinition } from '@/lib/import-export'
+import { executeResolvedImport, exportRows, downloadTemplate, incomeImportDefinition, buildClientNameResolverMap, buildLookupResolverMap } from '@/lib/import-export'
 
 interface IncomeRelation {
   label?: string
@@ -147,8 +147,8 @@ export default function IncomePage() {
     exportRows(
       incomeImportDefinition,
       incomes.map((income) => ({
-        client_id: income.client_id,
-        category_id: income.category_id,
+        client_name: income.client?.name || null,
+        category_label: income.category?.label || '',
         record_date: income.record_date,
         amount: income.amount,
         payment_status: income.payment_status,
@@ -163,9 +163,34 @@ export default function IncomePage() {
       data: { user },
     } = await supabase.auth.getUser()
 
-    const result = await executeImport({
+    const [clientMap, categoryMap] = await Promise.all([
+      buildClientNameResolverMap(supabase),
+      buildLookupResolverMap(supabase, 'income_category'),
+    ])
+
+    const result = await executeResolvedImport({
       file,
       definition: incomeImportDefinition,
+      resolveRow: async (row) => {
+        const errors: string[] = []
+        const clientId = row.client_name ? clientMap.get(row.client_name.trim().toLocaleLowerCase('tr-TR')) || null : null
+        const categoryId = categoryMap.get(row.category_label.trim().toLocaleLowerCase('tr-TR')) || null
+
+        if (row.client_name && !clientId) errors.push('client_name eşleşmedi')
+        if (!categoryId) errors.push('category_label eşleşmedi')
+        if (errors.length > 0) return { errors }
+
+        return {
+          value: {
+            client_id: clientId,
+            category_id: categoryId,
+            record_date: row.record_date,
+            amount: row.amount,
+            payment_status: row.payment_status,
+            description: row.description,
+          },
+        }
+      },
       insertRows: (rows) =>
         supabase.from('income_records').insert(
           rows.map((item) => ({

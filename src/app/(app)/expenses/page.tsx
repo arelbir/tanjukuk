@@ -16,7 +16,7 @@ import { Plus, Search } from 'lucide-react'
 import { PAYMENT_METHOD_MAPPING, getFieldLabel } from '@/types/mappings'
 import { useAuth } from '@/hooks/useAuth'
 import { ImportExportToolbar } from '@/components/import-export-toolbar'
-import { downloadTemplate, executeImport, expenseImportDefinition, exportRows } from '@/lib/import-export'
+import { downloadTemplate, executeResolvedImport, expenseImportDefinition, exportRows, buildLookupResolverMap } from '@/lib/import-export'
 
 interface ExpenseRelation {
   label: string
@@ -207,8 +207,8 @@ export default function ExpensesPage() {
       expenseImportDefinition,
       expenses.map((expense) => ({
         expense_type: expense.expense_type as 'kurum' | 'kisisel',
-        category_id: expense.category_id || '',
-        sub_category_id: expense.sub_category_id || null,
+        category_label: expense.category?.label || '',
+        sub_category_label: expense.sub_category?.label || null,
         record_date: expense.record_date,
         amount: expense.amount,
         payment_method: expense.payment_method || '',
@@ -223,9 +223,51 @@ export default function ExpensesPage() {
       data: { user },
     } = await supabase.auth.getUser()
 
-    const result = await executeImport({
+    const [categoryMap, paymentMethodMap] = await Promise.all([
+      buildLookupResolverMap(supabase, 'expense_category'),
+      Promise.resolve(new Map([
+        ['nakit', 'cash'],
+        ['cash', 'cash'],
+        ['havale', 'transfer'],
+        ['transfer', 'transfer'],
+        ['kart', 'card'],
+        ['card', 'card'],
+      ])),
+    ])
+
+    const result = await executeResolvedImport({
       file,
       definition: expenseImportDefinition,
+      resolveRow: async (row) => {
+        const errors: string[] = []
+        const categoryId = categoryMap.get(row.category_label.trim().toLocaleLowerCase('tr-TR')) || null
+        const paymentMethod = paymentMethodMap.get(row.payment_method.trim().toLocaleLowerCase('tr-TR')) || null
+
+        if (!categoryId) errors.push('category_label eşleşmedi')
+        if (!paymentMethod) errors.push('payment_method geçersiz')
+
+        let subCategoryId: string | null = null
+        if (row.sub_category_label) {
+          const catKey = row.category_label.trim().toLocaleLowerCase('tr-TR').replace(/[^a-zçğıöşü]/g, '')
+          const subCategoryMap = await buildLookupResolverMap(supabase, `expense_sub_${catKey}`)
+          subCategoryId = subCategoryMap.get(row.sub_category_label.trim().toLocaleLowerCase('tr-TR')) || null
+          if (!subCategoryId) errors.push('sub_category_label eşleşmedi')
+        }
+
+        if (errors.length > 0) return { errors }
+
+        return {
+          value: {
+            expense_type: row.expense_type,
+            category_id: categoryId,
+            sub_category_id: subCategoryId,
+            record_date: row.record_date,
+            amount: row.amount,
+            payment_method: paymentMethod,
+            description: row.description,
+          },
+        }
+      },
       insertRows: (rows) =>
         supabase.from('expense_records').insert(
           rows.map((item) => ({
