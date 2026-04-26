@@ -1,5 +1,5 @@
 -- Complete seed for all lookup values
--- Run this SQL to populate all missing lookup groups
+-- This is a clean seed without any legacy data
 
 -- 1. Kişi Türleri (entity_type)
 INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
@@ -43,7 +43,7 @@ INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
 ('currency', 'EUR', 3, true)
 ON CONFLICT DO NOTHING;
 
--- 7. Mahkeme Instance (court_instance) - For cases filter
+-- 7. Mahkeme Instance (court_instance)
 INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
 ('court_instance', 'Yerel Mahkeme', 1, true),
 ('court_instance', 'İstinaf', 2, true),
@@ -59,7 +59,68 @@ INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
 ('user_role', 'Asistan', 3, true)
 ON CONFLICT DO NOTHING;
 
--- 9. Türkiye İlleri (city)
+-- 9. Dava Durumları (case_status)
+INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
+('case_status', 'Devam Ediyor', 1, true),
+('case_status', 'Beklemede', 2, true),
+('case_status', 'Sonuçlandı', 3, true),
+('case_status', 'İptal', 4, true)
+ON CONFLICT DO NOTHING;
+
+-- 10. Dava Türleri (case_type)
+INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
+('case_type', 'Boşanma', 1, true),
+('case_type', 'Tazminat', 2, true),
+('case_type', 'Ceza', 3, true),
+('case_type', 'İş', 4, true),
+('case_type', 'Ticaret', 5, true)
+ON CONFLICT DO NOTHING;
+
+-- 11. Mahkeme Türleri (court_type)
+INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
+('court_type', 'Aile Mahkemesi', 1, true),
+('court_type', 'Asliye Hukuk Mahkemesi', 2, true),
+('court_type', 'İş Mahkemesi', 3, true),
+('court_type', 'Ceza Mahkemesi', 4, true)
+ON CONFLICT DO NOTHING;
+
+-- 12. Dosya Türleri (file_type)
+INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
+('file_type', 'Ana Dosya', 1, true),
+('file_type', 'İstem Dosyası', 2, true),
+('file_type', 'Dava Dosyası', 3, true)
+ON CONFLICT DO NOTHING;
+
+-- 13. Gelir Kategorileri (income_category)
+INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
+('income_category', 'Avukatlık Ücreti', 1, true),
+('income_category', 'Danışmanlık', 2, true),
+('income_category', 'Dava Masrafı', 3, true),
+('income_category', 'Diğer', 4, true)
+ON CONFLICT DO NOTHING;
+
+-- 14. Gider Kategorileri (expense_category)
+INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
+('expense_category', 'Kira', 1, true),
+('expense_category', 'Elektrik', 2, true),
+('expense_category', 'Su', 3, true),
+('expense_category', 'İnternet', 4, true),
+('expense_category', 'Ofis Malzemeleri', 5, true),
+('expense_category', 'Yemek', 6, true),
+('expense_category', 'Ulaşım', 7, true),
+('expense_category', 'Diğer', 8, true)
+ON CONFLICT DO NOTHING;
+
+-- 15. Aktivite Türleri (activity_type)
+INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
+('activity_type', 'Duruşma', 1, true),
+('activity_type', 'Müvekkil Görüşmesi', 2, true),
+('activity_type', 'Dava Dosyası İnceleme', 3, true),
+('activity_type', 'Mahkeme Başvurusu', 4, true),
+('activity_type', 'Delil Toplama', 5, true)
+ON CONFLICT DO NOTHING;
+
+-- 16. Türkiye İlleri (city)
 INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES
 ('city', 'Adana', 1, true),
 ('city', 'Adıyaman', 2, true),

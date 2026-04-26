@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Label } from '@/components/ui/label'
 import { FormDrawer, useFormDrawer } from '@/components/form-drawer'
-import { FormFieldSelect } from '@/components/form-field-select'
+import { UnifiedSelect } from '@/components/unified-select'
 import { USER_ROLE_MAPPING } from '@/types/mappings'
 import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
@@ -154,13 +154,11 @@ export default function AdminUsersPage() {
               onChange={(e) => drawer.updateValues({ email: e.target.value })}
             />
           </div>
-          <FormFieldSelect
+          <UnifiedSelect
             label="Rol"
             value={drawer.values.role}
-            onValueChange={(v) => drawer.updateValues({ role: v || 'assistant' })}
-            items={USER_ROLE_MAPPING}
-            getValue={(item) => item.value}
-            getLabel={(item) => item.label}
+            onChange={(v) => drawer.updateValues({ role: v || 'assistant' })}
+            items={USER_ROLE_MAPPING.map(m => ({ id: m.value, label: m.label }))}
           />
           <div className="flex gap-2">
             <Button
@@ -220,13 +218,10 @@ export default function AdminUsersPage() {
                   <TableCell className="font-medium">{user.full_name || '-'}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <FormFieldSelect
+                    <UnifiedSelect
                       value={user.role || 'assistant'}
-                      onValueChange={(v) => updateUserRole(user.id, v || 'assistant')}
-                      items={USER_ROLE_MAPPING}
-                      getValue={(item) => item.value}
-                      getLabel={(item) => item.label}
-                      triggerClassName="w-32"
+                      onChange={(v) => updateUserRole(user.id, v || 'assistant')}
+                      items={USER_ROLE_MAPPING.map(m => ({ id: m.value, label: m.label }))}
                     />
                   </TableCell>
                   <TableCell>

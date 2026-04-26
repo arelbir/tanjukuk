@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
+import { EmptyState } from '@/components/empty-state'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Label } from '@/components/ui/label'
 import { FormDrawer, useFormDrawer } from '@/components/form-drawer'
-import { FormFieldSelect } from '@/components/form-field-select'
+import { UnifiedSelect } from '@/components/unified-select'
 import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import { CLIENT_TYPE_MAPPING } from '@/types/mappings'
@@ -48,6 +49,9 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [dateFrom, setDateFrom] = useState<string>('')
+  const [dateTo, setDateTo] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -59,13 +63,29 @@ export default function ClientsPage() {
   useEffect(() => {
     async function loadClients() {
       let query = supabase.from('clients').select('*').order('created_at', { ascending: false })
-      if (search) query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`)
+      
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
+      }
+      
+      if (typeFilter !== 'all') {
+        query = query.eq('type', typeFilter)
+      }
+      
+      if (dateFrom) {
+        query = query.gte('created_at', dateFrom)
+      }
+      
+      if (dateTo) {
+        query = query.lte('created_at', dateTo)
+      }
+      
       const { data } = await query
       setClients(data || [])
       setLoading(false)
     }
     loadClients()
-  }, [supabase, search])
+  }, [supabase, search, typeFilter, dateFrom, dateTo])
 
   const handleSubmit = async () => {
     setSaving(true)
@@ -138,19 +158,21 @@ export default function ClientsPage() {
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-display">Müvekkiller</h1>
-        <div className="flex flex-wrap gap-2">
-          <ImportExportToolbar
-            onDownloadTemplate={handleDownloadTemplate}
-            onExport={handleExport}
-            onImport={handleImport}
-            importLabel="Şablon Yükle"
-            templateLabel="Şablon İndir"
-            exportLabel="Müvekkilleri Dışa Aktar"
-          />
-          <Button onClick={() => drawer.openForCreate()}>
-            <Plus className="h-4 w-4 mr-2" /> Yeni Müvekkil
-          </Button>
+        <h1 className="text-xl font-semibold tracking-tight">Müvekkiller</h1>
+        <div className="flex items-center gap-2">
+          <div className="flex">
+            <ImportExportToolbar
+              onDownloadTemplate={handleDownloadTemplate}
+              onExport={handleExport}
+              onImport={handleImport}
+              importLabel="Şablon Yükle"
+              templateLabel="Şablon İndir"
+              exportLabel="Müvekkilleri Dışa Aktar"
+            />
+            <Button variant="outline" onClick={() => drawer.openForCreate()} className="h-8 rounded-l-none border-l-0">
+              <Plus className="h-4 w-4 mr-2" /> Yeni Müvekkil
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -165,23 +187,24 @@ export default function ClientsPage() {
             <Label htmlFor="name">Ad/Unvan *</Label>
             <Input 
               id="name"
+              className="bg-white border-input"
               value={drawer.values.name} 
               onChange={(e) => drawer.updateValues({ name: e.target.value })} 
             />
           </div>
-          <FormFieldSelect
+          <UnifiedSelect
             label="Tip"
             value={drawer.values.type}
-            onValueChange={(v) => drawer.updateValues({ type: (v || 'individual') as 'individual' | 'company' })}
-            items={CLIENT_TYPE_MAPPING}
-            getValue={(item) => (item as { value: string }).value}
-            getLabel={(item) => (item as { label: string }).label}
+            onChange={(v) => drawer.updateValues({ type: (v || 'individual') as 'individual' | 'company' })}
+            items={CLIENT_TYPE_MAPPING.map(m => ({ id: m.value, label: m.label }))}
+            placeholder="Seçiniz"
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="phone">Telefon</Label>
               <Input 
                 id="phone"
+                className="bg-white border-input"
                 value={drawer.values.phone} 
                 onChange={(e) => drawer.updateValues({ phone: e.target.value })} 
               />
@@ -191,30 +214,61 @@ export default function ClientsPage() {
               <Input 
                 id="email"
                 type="email" 
+                className="bg-white border-input"
                 value={drawer.values.email} 
                 onChange={(e) => drawer.updateValues({ email: e.target.value })} 
               />
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button className="flex-1" onClick={handleSubmit} disabled={saving || !drawer.values.name}>
+          <div className="flex items-center gap-2 pt-2">
+            <Button className="h-8 px-4" onClick={handleSubmit} disabled={saving || !drawer.values.name}>
               {saving ? 'Kaydediliyor...' : 'Kaydet'}
             </Button>
-            <Button variant="outline" onClick={drawer.close}>İptal</Button>
+            <div className="flex-1" />
+            <Button variant="outline" className="h-8" onClick={drawer.close}>İptal</Button>
           </div>
         </div>
       </FormDrawer>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardContent className="p-4">
-          <div className="relative max-w-md">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Müvekkil ara..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Filtreler</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Müvekkil ara..." className="pl-9 h-8" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <UnifiedSelect
+              value={typeFilter}
+              onChange={(v) => setTypeFilter(v || 'all')}
+              items={[
+                { id: 'all', label: 'Tümü' },
+                { id: 'individual', label: 'Bireysel' },
+                { id: 'company', label: 'Şirket' }
+              ]}
+              placeholder="Seçiniz"
+            />
+            <div className="flex gap-2 sm:col-span-2 lg:col-span-2">
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="flex-1 h-8"
+                placeholder="Başlangıç"
+              />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="flex-1 h-8"
+                placeholder="Bitiş"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -229,7 +283,7 @@ export default function ClientsPage() {
             {loading ? (
               <TableRow><TableCell colSpan={5} className="text-center py-8">Yükleniyor...</TableCell></TableRow>
             ) : clients.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8">Müvekkil bulunamadı</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5}><EmptyState message="Müvekkil bulunamadı" /></TableCell></TableRow>
             ) : (
               clients.map((client) => (
                 <TableRow key={client.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/clients/${client.id}`)}>

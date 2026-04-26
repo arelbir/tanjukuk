@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FormDrawer } from '@/components/form-drawer'
-import { FormFieldSelectWithId } from '@/components/form-field-select'
+import { UnifiedSelect } from '@/components/unified-select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -85,10 +85,12 @@ export function CalendarHearingDrawer({
         .eq('id', caseId)
         .single()
 
-      const { error } = await supabase.from('hearings').insert({
+      const { error } = await supabase.from('events').insert({
         case_id: caseId,
         lawyer_id: caseData?.lawyer_id || null,
-        hearing_at: hearingAt,
+        event_type: 'activity',
+        title: 'Duruşma',
+        scheduled_at: hearingAt,
         location: location || null,
         is_completed: false,
       })
@@ -116,10 +118,10 @@ export function CalendarHearingDrawer({
       description={dateLabel ? `${dateLabel} tarihine duruşma ekle` : 'Duruşma ekle'}
     >
       <div className="space-y-4">
-        <FormFieldSelectWithId
+        <UnifiedSelect
           label="Dosya"
           value={caseId}
-          onValueChange={(v) => setCaseId(v || '')}
+          onChange={(v) => setCaseId(v || '')}
           items={cases}
           placeholder="Dosya seçin..."
           required

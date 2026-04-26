@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { EmptyState } from '@/components/empty-state'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FormDrawer, useFormDrawer } from '@/components/form-drawer'
-import { FormFieldSelect, FormFieldSelectWithId } from '@/components/form-field-select'
+import { UnifiedSelect } from '@/components/unified-select'
 import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import { PAYMENT_METHOD_MAPPING, getFieldLabel } from '@/types/mappings'
@@ -71,6 +72,10 @@ export default function ExpensesPage() {
   const [subCategories, setSubCategories] = useState<{ id: string; label: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all')
+  const [dateFrom, setDateFrom] = useState<string>('')
+  const [dateTo, setDateTo] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [expenseType, setExpenseType] = useState<ExpenseType>('kurum')
   const { isAdmin } = useAuth()
@@ -98,6 +103,22 @@ export default function ExpensesPage() {
         query = query.or(`description.ilike.%${search}%,document_ref.ilike.%${search}%`)
       }
 
+      if (categoryFilter !== 'all') {
+        query = query.eq('category_id', categoryFilter)
+      }
+
+      if (paymentMethodFilter !== 'all') {
+        query = query.eq('payment_method', paymentMethodFilter)
+      }
+
+      if (dateFrom) {
+        query = query.gte('record_date', dateFrom)
+      }
+
+      if (dateTo) {
+        query = query.lte('record_date', dateTo)
+      }
+
       const [expensesRes, catsRes] = await Promise.all([
         query,
         supabase.from('lookup_values').select('id, label').eq('group_key', 'expense_category').eq('is_active', true).order('sort_order'),
@@ -122,7 +143,7 @@ export default function ExpensesPage() {
     }
 
     void loadData()
-  }, [expenseType, search, supabase])
+  }, [expenseType, search, categoryFilter, paymentMethodFilter, dateFrom, dateTo, supabase])
 
   useEffect(() => {
     if (!drawer.values.category_id) return
@@ -291,19 +312,21 @@ export default function ExpensesPage() {
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-display">Giderler</h1>
-        <div className="flex flex-wrap gap-2">
-          <ImportExportToolbar
-            onDownloadTemplate={handleDownloadTemplate}
-            onExport={handleExport}
-            onImport={handleImport}
-            templateLabel="Şablon İndir"
-            importLabel="Şablon Yükle"
-            exportLabel="Giderleri Dışa Aktar"
-          />
-          <Button onClick={() => drawer.openForCreate()}>
-            <Plus className="h-4 w-4 mr-2" /> Yeni Gider
-          </Button>
+        <h1 className="text-xl font-semibold tracking-tight">Giderler</h1>
+        <div className="flex items-center gap-2">
+          <div className="flex">
+            <ImportExportToolbar
+              onDownloadTemplate={handleDownloadTemplate}
+              onExport={handleExport}
+              onImport={handleImport}
+              templateLabel="Şablon İndir"
+              importLabel="Şablon Yükle"
+              exportLabel="Giderleri Dışa Aktar"
+            />
+            <Button variant="outline" onClick={() => drawer.openForCreate()} className="h-8 rounded-l-none border-l-0">
+              <Plus className="h-4 w-4 mr-2" /> Yeni Gider
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -330,52 +353,52 @@ export default function ExpensesPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="record_date">Tarih</Label>
-              <Input id="record_date" type="date" value={drawer.values.record_date} onChange={(e) => drawer.updateValues({ record_date: e.target.value })} />
+              <Input id="record_date" type="date" className="bg-white border-input" value={drawer.values.record_date} onChange={(e) => drawer.updateValues({ record_date: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="amount">Tutar</Label>
-              <Input id="amount" type="number" value={drawer.values.amount} onChange={(e) => drawer.updateValues({ amount: e.target.value })} />
+              <Input id="amount" type="number" className="bg-white border-input" value={drawer.values.amount} onChange={(e) => drawer.updateValues({ amount: e.target.value })} />
             </div>
           </div>
-          <FormFieldSelectWithId
+          <UnifiedSelect
             label="Kategori"
             value={drawer.values.category_id}
-            onValueChange={(v) => drawer.updateValues({ category_id: v || '', sub_category_id: '' })}
-            items={categories}
-            placeholder="Seçin"
+            onChange={(v) => drawer.updateValues({ category_id: v || '', sub_category_id: '' })}
+            items={categories.map(c => ({ id: c.id, label: c.label || c.id }))}
+            placeholder="Seçiniz"
           />
           {subCategories.length > 0 && (
-            <FormFieldSelectWithId
+            <UnifiedSelect
               label="Alt Kategori"
               value={drawer.values.sub_category_id}
-              onValueChange={(v) => drawer.updateValues({ sub_category_id: v || '' })}
-              items={subCategories}
-              placeholder="Seçin"
+              onChange={(v) => drawer.updateValues({ sub_category_id: v || '' })}
+              items={subCategories.map(c => ({ id: c.id, label: c.label || c.id }))}
+              placeholder="Seçiniz"
             />
           )}
-          <FormFieldSelect
+          <UnifiedSelect
             label="Ödeme Yöntemi"
             value={drawer.values.payment_method}
-            onValueChange={(v) => drawer.updateValues({ payment_method: v || 'cash' })}
-            items={PAYMENT_METHOD_MAPPING}
-            getValue={(item) => (item as { value: string }).value}
-            getLabel={(item) => (item as { label: string }).label}
+            onChange={(v) => drawer.updateValues({ payment_method: v || 'cash' })}
+            items={PAYMENT_METHOD_MAPPING.map(m => ({ id: m.value, label: m.label }))}
+            placeholder="Seçiniz"
           />
           <div className="space-y-2">
             <Label htmlFor="description">Açıklama</Label>
-            <Input id="description" placeholder="Gider açıklaması..." value={drawer.values.description} onChange={(e) => drawer.updateValues({ description: e.target.value })} />
+            <Input id="description" className="bg-white border-input" placeholder="Gider açıklaması..." value={drawer.values.description} onChange={(e) => drawer.updateValues({ description: e.target.value })} />
           </div>
-          <div className="flex gap-2">
-            <Button className="flex-1" onClick={handleSubmit} disabled={saving || !drawer.values.amount}>
+          <div className="flex items-center gap-2 pt-2">
+            <Button className="h-8 px-4" onClick={handleSubmit} disabled={saving || !drawer.values.amount}>
               {saving ? 'Kaydediliyor...' : 'Kaydet'}
             </Button>
-            <Button variant="outline" onClick={drawer.close}>İptal</Button>
+            <div className="flex-1" />
+            <Button variant="outline" className="h-8" onClick={drawer.close}>İptal</Button>
           </div>
         </div>
       </FormDrawer>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Kurum Giderleri</CardTitle>
           </CardHeader>
@@ -384,7 +407,7 @@ export default function ExpensesPage() {
           </CardContent>
         </Card>
         {isAdmin && (
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Kişisel Giderler</CardTitle>
             </CardHeader>
@@ -402,16 +425,52 @@ export default function ExpensesPage() {
         </TabsList>
       </Tabs>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardContent className="p-4">
-          <div className="relative max-w-md">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Ara..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Filtreler</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Ara..." className="pl-9 h-8" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <UnifiedSelect
+              value={categoryFilter}
+              onChange={(v) => setCategoryFilter(v || 'all')}
+              items={[{ id: 'all', label: 'Tümü' }, ...categories.map(c => ({ id: c.id, label: c.label || c.id }))]}
+              placeholder="Seçiniz"
+            />
+            <UnifiedSelect
+              value={paymentMethodFilter}
+              onChange={(v) => setPaymentMethodFilter(v || 'all')}
+              items={[
+                { id: 'all', label: 'Tümü' },
+                { id: 'cash', label: 'Nakit' },
+                { id: 'bank', label: 'Banka' },
+                { id: 'credit_card', label: 'Kredi Kartı' }
+              ]}
+              placeholder="Seçiniz"
+            />
+            <div className="flex gap-2 sm:col-span-2 lg:col-span-2">
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="flex-1 h-8"
+                placeholder="Başlangıç"
+              />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="flex-1 h-8"
+                placeholder="Bitiş"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -427,7 +486,7 @@ export default function ExpensesPage() {
             {loading ? (
               <TableRow><TableCell colSpan={6} className="text-center py-8">Yükleniyor...</TableCell></TableRow>
             ) : expenses.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8">Kayıt bulunamadı</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6}><EmptyState message="Kayıt bulunamadı" /></TableCell></TableRow>
             ) : (
               expenses.map((expense) => (
                 <TableRow key={expense.id}>

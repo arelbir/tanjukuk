@@ -8,13 +8,14 @@ import {
   FolderKanban, 
   CalendarDays,
   TrendingUp,
-  MoreHorizontal
+  Users
 } from 'lucide-react'
 
 const mobileNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Dosyalar', href: '/cases', icon: FolderKanban },
   { name: 'Takvim', href: '/calendar', icon: CalendarDays },
+  { name: 'Müvekkiller', href: '/clients', icon: Users },
   { name: 'Gelir/Gider', href: '/income', icon: TrendingUp },
 ]
 
@@ -41,13 +42,6 @@ export function MobileNav() {
           </Link>
         )
       })}
-      <Link
-        href="/cases"
-        className="flex flex-col items-center gap-1 rounded-md p-2 text-xs text-muted-foreground"
-      >
-        <MoreHorizontal className="h-5 w-5" />
-        <span>Menü</span>
-      </Link>
     </nav>
   )
 }

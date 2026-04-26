@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { EmptyState } from '@/components/empty-state'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Label } from '@/components/ui/label'
 import { FormDrawer, useFormDrawer } from '@/components/form-drawer'
-import { FormFieldSelectWithId } from '@/components/form-field-select'
+import { UnifiedSelect } from '@/components/unified-select'
 import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import { PAYMENT_STATUS_MAPPING, getFieldLabel } from '@/types/mappings'
@@ -72,6 +73,8 @@ export default function IncomePage() {
   const [categories, setCategories] = useState<{id: string, label: string}[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [clientFilter, setClientFilter] = useState<string>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [saving, setSaving] = useState(false)
   const supabase = createClient()
 
@@ -82,18 +85,31 @@ export default function IncomePage() {
 
   useEffect(() => {
     async function loadData() {
+      const [clientsRes, catsRes] = await Promise.all([
+        supabase.from('clients').select('id, name').order('name'),
+        supabase.from('lookup_values').select('id, label').eq('group_key', 'income_category').order('label')
+      ])
+      setClients(clientsRes.data || [])
+      setCategories(catsRes.data || [])
+      
       let query = supabase.from('income_records')
         .select(`id, client_id, category_id, record_date, amount, currency, payment_status, client:clients(name), category:lookup_values!income_records_category_id_fkey(label)`)
         .order('record_date', { ascending: false })
-      if (search) query = query.or(`description.ilike.%${search}%,client.name.ilike.%${search}%`)
       
-      const [incomesRes, clientsRes, catsRes] = await Promise.all([
-        query,
-        supabase.from('clients').select('id, name'),
-        supabase.from('lookup_values').select('id, label').eq('group_key', 'income_category').eq('is_active', true).order('sort_order')
-      ])
+      if (search) {
+        query = query.or(`description.ilike.%${search}%,client.name.ilike.%${search}%`)
+      }
       
-      const mappedIncomes: Income[] = ((incomesRes.data as IncomeRecordRow[] | null) || []).map((income) => ({
+      if (clientFilter !== 'all') {
+        query = query.eq('client_id', clientFilter)
+      }
+
+      if (categoryFilter !== 'all') {
+        query = query.eq('category_id', categoryFilter)
+      }
+      
+      const { data } = await query
+      const mappedIncomes = (data || []).map((income: IncomeRecordRow) => ({
         id: income.id,
         client_id: income.client_id,
         category_id: income.category_id,
@@ -104,14 +120,11 @@ export default function IncomePage() {
         client: normalizeIncomeClient(income.client),
         category: normalizeIncomeCategory(income.category),
       }))
-
       setIncomes(mappedIncomes)
-      setClients(clientsRes.data || [])
-      setCategories(catsRes.data || [])
       setLoading(false)
     }
-    loadData()
-  }, [supabase, search])
+    void loadData()
+  }, [search, clientFilter, categoryFilter, supabase])
 
   const handleSubmit = async () => {
     setSaving(true)
@@ -217,19 +230,21 @@ export default function IncomePage() {
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-display">Gelirler</h1>
-        <div className="flex flex-wrap gap-2">
-          <ImportExportToolbar
-            onDownloadTemplate={handleDownloadTemplate}
-            onExport={handleExport}
-            onImport={handleImport}
-            templateLabel="Şablon İndir"
-            importLabel="Şablon Yükle"
-            exportLabel="Gelirleri Dışa Aktar"
-          />
-          <Button onClick={() => drawer.openForCreate()}>
-            <Plus className="h-4 w-4 mr-2" /> Yeni Gelir
-          </Button>
+        <h1 className="text-xl font-semibold tracking-tight">Gelirler</h1>
+        <div className="flex items-center gap-2">
+          <div className="flex">
+            <ImportExportToolbar
+              onDownloadTemplate={handleDownloadTemplate}
+              onExport={handleExport}
+              onImport={handleImport}
+              templateLabel="Şablon İndir"
+              importLabel="Şablon Yükle"
+              exportLabel="Gelirleri Dışa Aktar"
+            />
+            <Button variant="outline" onClick={() => drawer.openForCreate()} className="h-8 rounded-l-none border-l-0">
+              <Plus className="h-4 w-4 mr-2" /> Yeni Gelir
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -246,6 +261,7 @@ export default function IncomePage() {
               <Input 
                 id="record_date"
                 type="date" 
+                className="bg-white border-input"
                 value={drawer.values.record_date} 
                 onChange={(e) => drawer.updateValues({ record_date: e.target.value })} 
               />
@@ -255,36 +271,38 @@ export default function IncomePage() {
               <Input 
                 id="amount"
                 type="number" 
+                className="bg-white border-input"
                 value={drawer.values.amount} 
                 onChange={(e) => drawer.updateValues({ amount: e.target.value })} 
               />
             </div>
           </div>
-          <FormFieldSelectWithId
+          <UnifiedSelect
             label="Müvekkil"
             value={drawer.values.client_id}
-            onValueChange={(v) => drawer.updateValues({ client_id: v || '' })}
-            items={clients}
-            placeholder="Seçin"
+            onChange={(v) => drawer.updateValues({ client_id: v || '' })}
+            items={clients.map(c => ({ id: c.id, label: c.name || c.id }))}
+            placeholder="Seçiniz"
           />
-          <FormFieldSelectWithId
+          <UnifiedSelect
             label="Kategori"
             value={drawer.values.category_id}
-            onValueChange={(v) => drawer.updateValues({ category_id: v || '' })}
-            items={categories}
-            placeholder="Seçin"
+            onChange={(v) => drawer.updateValues({ category_id: v || '' })}
+            items={categories.map(c => ({ id: c.id, label: c.label || c.id }))}
+            placeholder="Seçiniz"
           />
-          <div className="flex gap-2">
-            <Button className="flex-1" onClick={handleSubmit} disabled={saving || !drawer.values.amount}>
+          <div className="flex items-center gap-2 pt-2">
+            <Button className="h-8 px-4" onClick={handleSubmit} disabled={saving || !drawer.values.amount}>
               {saving ? 'Kaydediliyor...' : 'Kaydet'}
             </Button>
-            <Button variant="outline" onClick={drawer.close}>İptal</Button>
+            <div className="flex-1" />
+            <Button variant="outline" className="h-8" onClick={drawer.close}>İptal</Button>
           </div>
         </div>
       </FormDrawer>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Toplam Gelir</CardTitle>
           </CardHeader>
@@ -294,16 +312,31 @@ export default function IncomePage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardContent className="p-4">
-          <div className="relative max-w-md">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Ara..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Filtreler</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Ara..." className="pl-9 h-8" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <UnifiedSelect
+              value={clientFilter}
+              onChange={(v) => setClientFilter(v || 'all')}
+              items={[{ id: 'all', label: 'Tümü' }, ...clients.map(c => ({ id: c.id, label: c.name || c.id }))]}
+              placeholder="Seçiniz"
+            />
+            <UnifiedSelect
+              value={categoryFilter}
+              onChange={(v) => setCategoryFilter(v || 'all')}
+              items={[{ id: 'all', label: 'Tümü' }, ...categories.map(c => ({ id: c.id, label: c.label || c.id }))]}
+              placeholder="Seçiniz"
+            />
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -318,7 +351,7 @@ export default function IncomePage() {
             {loading ? (
               <TableRow><TableCell colSpan={5} className="text-center py-8">Yükleniyor...</TableCell></TableRow>
             ) : incomes.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8">Kayıt bulunamadı</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5}><EmptyState message="Kayıt bulunamadı" /></TableCell></TableRow>
             ) : (
               incomes.map((income) => (
                 <TableRow key={income.id}>

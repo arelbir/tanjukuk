@@ -6,7 +6,7 @@ import { Upload, Download, FileSpreadsheet } from 'lucide-react'
 
 interface ImportExportToolbarProps {
   onDownloadTemplate: () => void
-  onExport: () => void
+  onExport?: () => void
   onImport?: (file: File) => Promise<void> | void
   importLabel?: string
   exportLabel?: string
@@ -33,7 +33,7 @@ export function ImportExportToolbar({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex">
       <input
         ref={inputRef}
         type="file"
@@ -41,18 +41,20 @@ export function ImportExportToolbar({
         className="hidden"
         onChange={handleFileChange}
       />
-      <Button variant="outline" onClick={onDownloadTemplate}>
+      <Button variant="outline" onClick={onDownloadTemplate} className="h-8 rounded-l-md rounded-r-none border-r-0">
         <Download className="h-4 w-4 mr-2" />
         {templateLabel}
       </Button>
-      <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={importDisabled || !onImport}>
+      <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={importDisabled || !onImport} className="h-8 rounded-none border-r-0">
         <Upload className="h-4 w-4 mr-2" />
         {importLabel}
       </Button>
-      <Button variant="outline" onClick={onExport}>
-        <FileSpreadsheet className="h-4 w-4 mr-2" />
-        {exportLabel}
-      </Button>
+      {onExport && (
+        <Button variant="outline" onClick={onExport} className="h-8 rounded-none">
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+          {exportLabel}
+        </Button>
+      )}
     </div>
   )
 }

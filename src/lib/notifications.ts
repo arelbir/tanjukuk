@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 
 export interface CreateNotificationParams {
   userId: string
@@ -10,9 +10,14 @@ export interface CreateNotificationParams {
   linkUrl?: string
 }
 
+/**
+ * Create an immediate notification (server-side)
+ * This is for instant notifications like case assignments, status changes, etc.
+ * For scheduled reminders, use the reminder system instead.
+ */
 export async function createNotification(params: CreateNotificationParams) {
-  const supabase = createClient()
-  
+  const supabase = await createClient()
+
   const { data, error } = await supabase
     .from('notifications')
     .insert({
@@ -23,6 +28,7 @@ export async function createNotification(params: CreateNotificationParams) {
       entity_id: params.entityId || null,
       entity_type: params.entityType || null,
       link_url: params.linkUrl || null,
+      channel: 'in_app',
     })
     .select()
     .single()
@@ -71,39 +77,34 @@ export async function notifyCaseStatusChange(caseData: {
   })
 }
 
-// Auto-notification for upcoming hearings
-export async function notifyHearingReminder(hearingData: {
+// ============================================================================
+// DEPRECATED: Use the reminder system instead
+// The following functions are deprecated and should not be used.
+// Scheduled reminders are now handled by:
+// - src/lib/reminders/policies.ts
+// - src/lib/reminders/candidates.ts
+// - src/lib/reminders/dispatch.ts
+// - src/app/api/internal/reminders/run/route.ts
+// ============================================================================
+
+/**
+ * @deprecated Use the reminder system instead (src/lib/reminders)
+ */
+export async function notifyHearingReminder(_hearingData: {
   id: string
   case_id: string
   case_code: string
   hearing_date: string
   lawyer_id: string
 }) {
-  const hearingDate = new Date(hearingData.hearing_date)
-  const today = new Date()
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-
-  const isToday = hearingDate.toDateString() === today.toDateString()
-  const isTomorrow = hearingDate.toDateString() === tomorrow.toDateString()
-
-  if (!isToday && !isTomorrow) return null // Only notify today or tomorrow
-
-  const timeLabel = isToday ? 'bugün' : 'yarın'
-  
-  return createNotification({
-    userId: hearingData.lawyer_id,
-    title: `Duruşma ${timeLabel}`,
-    message: `${hearingData.case_code} numaralı dosyanın duruşması ${timeLabel}. Tarih: ${hearingDate.toLocaleDateString('tr-TR')}`,
-    type: 'hearing',
-    entityId: hearingData.id,
-    entityType: 'hearing',
-    linkUrl: `/cases/${hearingData.case_id}`,
-  })
+  console.warn('notifyHearingReminder is deprecated. Use the reminder system instead.')
+  return null
 }
 
-// Auto-notification for deadline
-export async function notifyDeadlineReminder(deadlineData: {
+/**
+ * @deprecated Use the reminder system instead (src/lib/reminders)
+ */
+export async function notifyDeadlineReminder(_deadlineData: {
   id: string
   case_id: string
   case_code: string
@@ -111,68 +112,20 @@ export async function notifyDeadlineReminder(deadlineData: {
   description: string
   lawyer_id: string
 }) {
-  const deadlineDate = new Date(deadlineData.deadline_date)
-  const today = new Date()
-  const daysUntil = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (daysUntil < 0 || daysUntil > 7) return null // Only notify if within 7 days or past
-
-  const timeLabel = daysUntil < 0 ? `${Math.abs(daysUntil)} gün geçti` : `${daysUntil} gün kaldı`
-  
-  return createNotification({
-    userId: deadlineData.lawyer_id,
-    title: `Deadline: ${timeLabel}`,
-    message: `${deadlineData.case_code} - ${deadlineData.description}`,
-    type: 'deadline',
-    entityId: deadlineData.id,
-    entityType: 'case',
-    linkUrl: `/cases/${deadlineData.case_id}`,
-  })
+  console.warn('notifyDeadlineReminder is deprecated. Use the reminder system instead.')
+  return null
 }
 
-// Batch notify all lawyers (for cron job or manual trigger)
+/**
+ * @deprecated Use the reminder system instead (src/lib/reminders)
+ */
 export async function checkAndNotifyHearings() {
-  const supabase = createClient()
-  
-  // Get hearings for today and tomorrow
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
-
-  const { data: hearings } = await supabase
-    .from('cases')
-    .select('id, case_code, next_hearing_at, lawyer_id')
-    .not('next_hearing_at', 'is', null)
-    .lte('next_hearing_at', tomorrow)
-
-  for (const hearing of hearings || []) {
-    await notifyHearingReminder({
-      id: hearing.id,
-      case_id: hearing.id,
-      case_code: hearing.case_code,
-      hearing_date: hearing.next_hearing_at,
-      lawyer_id: hearing.lawyer_id,
-    })
-  }
+  console.warn('checkAndNotifyHearings is deprecated. Use the reminder system instead.')
 }
 
-// Check deadlines for all active cases
+/**
+ * @deprecated Use the reminder system instead (src/lib/reminders)
+ */
 export async function checkAndNotifyDeadlines() {
-  const supabase = createClient()
-  
-  // Get cases with upcoming deadlines (next 7 days)
-  const { data: cases } = await supabase
-    .from('cases')
-    .select('id, case_code, deadline, lawyer_id')
-    .not('deadline', 'is', null)
-    .eq('status_id', 'active')
-
-  for (const c of cases || []) {
-    await notifyDeadlineReminder({
-      id: c.id,
-      case_id: c.id,
-      case_code: c.case_code,
-      deadline_date: c.deadline,
-      description: 'Süre',
-      lawyer_id: c.lawyer_id,
-    })
-  }
+  console.warn('checkAndNotifyDeadlines is deprecated. Use the reminder system instead.')
 }

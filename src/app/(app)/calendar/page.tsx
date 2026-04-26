@@ -9,37 +9,12 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import { Card, CardContent } from '@/components/ui/card'
-import { FormFieldSelectWithId } from '@/components/form-field-select'
+import { UnifiedSelect } from '@/components/unified-select'
+import { Event } from '@/types/events'
 
 interface User {
   id: string
   full_name: string
-}
-
-interface CalendarRelation {
-  name?: string
-}
-
-interface HearingRow {
-  id: string
-  hearing_at: string
-  location: string | null
-  case_id: string
-  lawyer_id?: string | null
-  lawyer?: { id?: string; full_name?: string } | null
-  case?: { case_code?: string; client?: CalendarRelation | CalendarRelation[] | null } | null
-}
-
-interface ActivityRow {
-  id: string
-  title: string
-  scheduled_at: string
-  location: string | null
-  case_id: string
-  duration_minutes?: number | null
-  activity_type_id?: string | null
-  activity_type?: { label?: string } | null
-  case?: { case_code?: string; client?: CalendarRelation | CalendarRelation[] | null } | null
 }
 
 interface CalendarEvent {
@@ -55,7 +30,7 @@ interface CalendarEvent {
   textColor: string
   extendedProps: {
     caseId: string
-    caseCode?: string
+    caseCode?: string | null
     clientName?: string
     lawyerId?: string | null
     lawyerName?: string
@@ -95,9 +70,9 @@ function getActivityColor(typeId: string | null): string {
   return ACTIVITY_COLORS[Math.abs(hash) % ACTIVITY_COLORS.length]
 }
 
-function getClientName(client: CalendarRelation | CalendarRelation[] | null | undefined) {
+function getClientName(client: { name: string | null } | null | undefined) {
   if (!client) return ''
-  return Array.isArray(client) ? client[0]?.name || '' : client.name || ''
+  return client.name || ''
 }
 
 export default function CalendarPage() {
@@ -110,23 +85,16 @@ export default function CalendarPage() {
 
   useEffect(() => {
     async function loadData() {
-      const [hearingsRes, activitiesRes, lawyersRes] = await Promise.all([
-        supabase.from('hearings')
+      const [eventsRes, lawyersRes] = await Promise.all([
+        supabase.from('events')
           .select(`
-            id, hearing_at, location, case_id, lawyer_id,
+            id, event_type, title, description, scheduled_at, duration_minutes, location, lawyer_id,
             case:cases(case_code, client:clients(name)),
-            lawyer:users!hearings_lawyer_id_fkey(id, full_name)
-          `)
-          .order('hearing_at', { ascending: true })
-          .limit(200),
-        supabase.from('case_activities')
-          .select(`
-            id, title, scheduled_at, location, case_id, duration_minutes, activity_type_id,
-            case:cases(case_code, client:clients(name)),
-            activity_type:lookup_values!case_activities_activity_type_id_fkey(label)
+            lawyer:users!events_lawyer_id_fkey(id, full_name),
+            event_type_lookup:lookup_values!events_event_type_id_fkey(label)
           `)
           .order('scheduled_at', { ascending: true })
-          .limit(200),
+          .limit(400),
         supabase.from('users').select('id, full_name').eq('role', 'lawyer')
       ])
 
@@ -134,62 +102,41 @@ export default function CalendarPage() {
 
       const now = new Date()
 
-      const hearingEvents: CalendarEvent[] = ((hearingsRes.data as HearingRow[] | null) || []).map((h) => {
-        const hearingDate = new Date(h.hearing_at)
-        const isPast = hearingDate < now
-        const lawyerId = h.lawyer?.id || h.lawyer_id || null
-        const clientName = getClientName(h.case?.client)
+      const calendarEvents: CalendarEvent[] = ((eventsRes.data as Event[] | null) || []).map((e) => {
+        const eventDate = new Date(e.scheduled_at)
+        const isPast = eventDate < now
+        const lawyerId = e.lawyer?.id || e.lawyer_id || null
+        const clientName = getClientName(e.case?.client)
+        const duration = (e.duration_minutes || 60) * 60 * 1000
 
         return {
-          id: h.id,
-          type: 'hearing',
-          title: `${h.case?.case_code || ''} - ${clientName}`,
-          start: h.hearing_at,
-          end: new Date(hearingDate.getTime() + 60 * 60 * 1000).toISOString(),
-          location: h.location,
+          id: e.id,
+          type: e.event_type,
+          title: e.event_type === 'hearing' 
+            ? `${e.case?.case_code || ''} - ${clientName}`
+            : `${e.case?.case_code || ''} - ${e.title || ''}`,
+          start: e.scheduled_at,
+          end: new Date(eventDate.getTime() + duration).toISOString(),
+          location: e.location,
           extendedProps: {
-            caseId: h.case_id,
-            caseCode: h.case?.case_code,
+            caseId: e.case_id,
+            caseCode: e.case?.case_code,
             clientName,
             lawyerId,
-            lawyerName: h.lawyer?.full_name,
-            type: 'hearing',
+            lawyerName: e.lawyer?.full_name,
+            activityType: e.event_type_lookup?.label,
+            type: e.event_type,
           },
-          backgroundColor: getLawyerColor(lawyerId),
+          backgroundColor: e.event_type === 'hearing' 
+            ? getLawyerColor(lawyerId)
+            : getActivityColor(e.event_type_id || null),
           borderColor: 'transparent',
           opacity: isPast ? 0.5 : 1,
           textColor: isPast ? '#6b7280' : '#ffffff',
         }
       })
 
-      const activityEvents: CalendarEvent[] = ((activitiesRes.data as ActivityRow[] | null) || []).map((a) => {
-        const activityDate = new Date(a.scheduled_at)
-        const isPast = activityDate < now
-        const duration = (a.duration_minutes || 60) * 60 * 1000
-        const clientName = getClientName(a.case?.client)
-
-        return {
-          id: a.id,
-          type: 'activity',
-          title: `${a.case?.case_code || ''} - ${a.title}`,
-          start: a.scheduled_at,
-          end: new Date(activityDate.getTime() + duration).toISOString(),
-          location: a.location,
-          extendedProps: {
-            caseId: a.case_id,
-            caseCode: a.case?.case_code,
-            clientName,
-            activityType: a.activity_type?.label,
-            type: 'activity',
-          },
-          backgroundColor: getActivityColor(a.activity_type_id || null),
-          borderColor: 'transparent',
-          opacity: isPast ? 0.5 : 1,
-          textColor: isPast ? '#6b7280' : '#ffffff',
-        }
-      })
-
-      setEvents([...hearingEvents, ...activityEvents])
+      setEvents(calendarEvents)
       setLoading(false)
     }
     void loadData()
@@ -198,6 +145,8 @@ export default function CalendarPage() {
   const filteredEvents = selectedLawyers.length > 0
     ? events.filter((e) => selectedLawyers.includes(e.extendedProps.lawyerId || ''))
     : events
+
+  const lawyerItems = [{ id: 'all', label: 'Tüm Avukatlar' }, ...lawyers.map((l) => ({ id: l.id, label: l.full_name }))]
 
   const handleEventClick = (info: EventClickArg) => {
     const caseId = String(info.event.extendedProps.caseId || '')
@@ -208,14 +157,10 @@ export default function CalendarPage() {
   const handleEventDrop = async (info: EventDropArg) => {
     const { id } = info.event
     const newDate = info.event.startStr
-    const eventType = String(info.event.extendedProps.type || '')
-    
-    const table = eventType === 'hearing' ? 'hearings' : 'case_activities'
-    const field = eventType === 'hearing' ? 'hearing_at' : 'scheduled_at'
     
     const { error } = await supabase
-      .from(table)
-      .update({ [field]: newDate })
+      .from('events')
+      .update({ scheduled_at: newDate })
       .eq('id', id)
 
     if (error) {
@@ -227,12 +172,11 @@ export default function CalendarPage() {
     <div className="space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Takvim</h1>
-        <FormFieldSelectWithId
+        <UnifiedSelect
           value={selectedLawyers[0] || 'all'}
-          onValueChange={(v) => setSelectedLawyers(v === 'all' ? [] : [v || ''])}
-          items={[{ id: 'all', label: 'Tüm Avukatlar' }, ...lawyers.map((l) => ({ id: l.id, label: l.full_name }))]}
+          onChange={(v) => setSelectedLawyers(v === 'all' ? [] : [v || ''])}
+          items={lawyerItems}
           placeholder="Avukat seç"
-          triggerClassName="w-48"
         />
       </div>
 

@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { FormDrawer } from '@/components/form-drawer'
-import { FormFieldSelectWithId } from '@/components/form-field-select'
+import { UnifiedSelect } from '@/components/unified-select'
 import { CaseFilters } from '@/types/case'
 
 interface FilterDrawerProps {
@@ -57,17 +57,17 @@ export function FilterDrawer({ open, onOpenChange, filters, onApply, onClear, la
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <FormFieldSelectWithId
+          <UnifiedSelect
             label="Avukat"
             value={filters.lawyerFilter || 'all'}
-            onValueChange={(v) => onApply({ ...filters, lawyerFilter: v || 'all' })}
+            onChange={(v) => onApply({ ...filters, lawyerFilter: v || 'all' })}
             items={lawyerItems}
             placeholder="Seçin"
           />
-          <FormFieldSelectWithId
+          <UnifiedSelect
             label="Durum"
             value={filters.statusFilter || 'all'}
-            onValueChange={(v) => onApply({ ...filters, statusFilter: v || 'all' })}
+            onChange={(v) => onApply({ ...filters, statusFilter: v || 'all' })}
             items={statusItems}
             placeholder="Seçin"
           />

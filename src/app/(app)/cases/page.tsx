@@ -1,12 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Label } from '@/components/ui/label'
+import { StatusBadge } from '@/components/status-badge'
+import { EmptyState } from '@/components/empty-state'
 import {
   Table,
   TableBody,
@@ -17,7 +16,7 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent } from '@/components/ui/card'
 import { LeanBadge } from '@/components/lean-badge'
-import { FormFieldSelectWithId } from '@/components/form-field-select'
+import { UnifiedSelect } from '@/components/unified-select'
 import { useCases } from '@/hooks'
 import { useMultipleLookups } from '@/hooks/useLookups'
 import { Plus, Search } from 'lucide-react'
@@ -188,78 +187,71 @@ export default function CasesPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-3xl font-display">Dosyalar</h1>
-        <div className="flex gap-3 flex-wrap">
-          <ImportExportToolbar
-            onDownloadTemplate={handleDownloadTemplate}
-            onExport={handleExport}
-            onImport={handleImport}
-            templateLabel="Şablon İndir"
-            importLabel="Şablon Yükle"
-            exportLabel="Dosyaları Dışa Aktar"
-          />
-
-          <Link href="/cases/new">
-            <Button className="bg-primary hover:bg-primary/90">
+        <h1 className="text-xl font-semibold tracking-tight">Dosyalar</h1>
+        <div className="flex items-center gap-2">
+          <div className="flex">
+            <ImportExportToolbar
+              onDownloadTemplate={handleDownloadTemplate}
+              onExport={handleExport}
+              onImport={handleImport}
+              templateLabel="Şablon İndir"
+              importLabel="Şablon Yükle"
+              exportLabel="Dosyaları Dışa Aktar"
+            />
+            <Button variant="outline" onClick={() => router.push('/cases/new')} className="h-8 rounded-l-none border-l-0">
               <Plus className="h-4 w-4 mr-2" />
               Yeni Dosya
             </Button>
-          </Link>
+          </div>
         </div>
       </div>
 
       <Card className="border-0 shadow-sm">
         <CardContent className="p-4">
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <div className="relative flex-1">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Filtreler</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Dosya kodu, müvekkil, karşı taraf ara..."
-                className="pl-9"
+                className="pl-9 h-8"
                 value={filters.search}
                 onChange={(e) => updateFilters({ search: e.target.value })}
               />
             </div>
-            <FormFieldSelectWithId
+            <UnifiedSelect
               value={filters.lawyerFilter || 'all'}
-              onValueChange={(v) => updateFilters({ lawyerFilter: v || 'all' })}
-              items={lawyerFilterItems}
-              placeholder="Avukat"
-              triggerClassName="w-full sm:w-48"
+              onChange={(v) => updateFilters({ lawyerFilter: v || 'all' })}
+              items={lawyerFilterItems.map(i => ({ id: i.id, label: i.label || i.id }))}
+              placeholder="Seçiniz"
             />
-            <FormFieldSelectWithId
+            <UnifiedSelect
               value={filters.statusFilter || 'all'}
-              onValueChange={(v) => updateFilters({ statusFilter: v || 'all' })}
-              items={statusFilterItems}
-              placeholder="Durum"
-              triggerClassName="w-full sm:w-48"
+              onChange={(v) => updateFilters({ statusFilter: v || 'all' })}
+              items={statusFilterItems.map(i => ({ id: i.id, label: i.label || i.id }))}
+              placeholder="Seçiniz"
             />
-            <FormFieldSelectWithId
+            <UnifiedSelect
               value={filters.caseTypeFilter || 'all'}
-              onValueChange={(v) => updateFilters({ caseTypeFilter: v || 'all' })}
-              items={caseTypeFilterItems}
-              placeholder="Dava Türü"
-              triggerClassName="w-full sm:w-48"
+              onChange={(v) => updateFilters({ caseTypeFilter: v || 'all' })}
+              items={caseTypeFilterItems.map(i => ({ id: i.id, label: i.label || i.id }))}
+              placeholder="Seçiniz"
             />
-            <div className="flex gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Başlangıç</Label>
-                <Input
-                  type="date"
-                  value={filters.dateFrom || ''}
-                  onChange={(e) => updateFilters({ dateFrom: e.target.value || null })}
-                  className="w-full sm:w-40"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Bitiş</Label>
-                <Input
-                  type="date"
-                  value={filters.dateTo || ''}
-                  onChange={(e) => updateFilters({ dateTo: e.target.value || null })}
-                  className="w-full sm:w-40"
-                />
-              </div>
+            <div className="flex gap-2 sm:col-span-2 lg:col-span-2">
+              <Input
+                type="date"
+                value={filters.dateFrom || ''}
+                onChange={(e) => updateFilters({ dateFrom: e.target.value || null })}
+                className="flex-1 h-8"
+                placeholder="Başlangıç"
+              />
+              <Input
+                type="date"
+                value={filters.dateTo || ''}
+                onChange={(e) => updateFilters({ dateTo: e.target.value || null })}
+                className="flex-1 h-8"
+                placeholder="Bitiş"
+              />
             </div>
           </div>
         </CardContent>
@@ -288,8 +280,8 @@ export default function CasesPage() {
               </TableRow>
             ) : cases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  Dosya bulunamadı
+                <TableCell colSpan={8}>
+                  <EmptyState message="Dosya bulunamadı" />
                 </TableCell>
               </TableRow>
             ) : (
@@ -307,7 +299,7 @@ export default function CasesPage() {
                   <TableCell>{c.opposing_party}</TableCell>
                   <TableCell>{c.case_type?.label || '-'}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{c.status?.label || '-'}</Badge>
+                    <StatusBadge label={c.status?.label || '-'} />
                   </TableCell>
                   <TableCell>
                     {c.next_hearing_at ? new Date(c.next_hearing_at).toLocaleDateString('tr-TR') : '-'}

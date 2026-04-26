@@ -2,7 +2,7 @@ import { ImportDefinition } from './types'
 
 export interface HearingImportRow {
   case_code: string
-  hearing_at: string
+  scheduled_at: string
   location: string | null
   result: string | null
   next_step: string | null
@@ -20,25 +20,25 @@ export const hearingImportDefinition: ImportDefinition<HearingImportRow> = {
   instructions: ['Dosya Kodu sistemdeki dosya koduyla eşleşmelidir. Duruşma Tarihi YYYY-MM-DD formatında olmalıdır (örn: 2024-01-15).'],
   toRow: (item) => ({
     'Dosya Kodu': item.case_code,
-    'Duruşma Tarihi': item.hearing_at,
+    'Duruşma Tarihi': item.scheduled_at,
     'Yer': item.location,
     'Sonuç': item.result,
     'Sonraki Adım': item.next_step,
   }),
   fromRow: (row) => {
     const case_code = String(row['Dosya Kodu'] || '').trim()
-    const hearing_at = String(row['Duruşma Tarihi'] || '').trim()
+    const scheduled_at = String(row['Duruşma Tarihi'] || '').trim()
     const errors: string[] = []
 
     if (!case_code) errors.push('Dosya Kodu zorunludur')
-    if (!hearing_at) errors.push('Duruşma Tarihi zorunludur')
+    if (!scheduled_at) errors.push('Duruşma Tarihi zorunludur')
 
     if (errors.length > 0) return { errors }
 
     return {
       value: {
         case_code,
-        hearing_at,
+        scheduled_at,
         location: normalizeString(row['Yer']),
         result: normalizeString(row['Sonuç']),
         next_step: normalizeString(row['Sonraki Adım']),

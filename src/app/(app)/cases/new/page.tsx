@@ -8,13 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ClientSelect } from '@/components/client-select'
-import { LawyerSelect } from '@/components/lawyer-select'
-import { FormFieldSelectWithId } from '@/components/form-field-select'
+import { UnifiedSelect, SelectItem as UnifiedSelectItem } from '@/components/unified-select'
 import { RadioGroup } from '@/components/radio-group'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { ArrowLeft, Save, Loader2, Calendar } from 'lucide-react'
+import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import { useMultipleLookups } from '@/hooks/useLookups'
 import { cn } from '@/lib/utils'
 import { ImportExportToolbar } from '@/components/import-export-toolbar'
@@ -53,6 +50,9 @@ export default function NewCasePage() {
   const [isDirty, setIsDirty] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  const [lawyers, setLawyers] = useState<UnifiedSelectItem[]>([])
+  const [clients, setClients] = useState<UnifiedSelectItem[]>([])
 
   const MAX_QUICK_STATUSES = 4
 
@@ -103,6 +103,32 @@ export default function NewCasePage() {
     }
   }, [defaultStatus, formData.status_id])
 
+  // Load lawyers
+  useEffect(() => {
+    async function loadLawyers() {
+      const { data } = await supabase
+        .from('users')
+        .select('id, full_name')
+        .eq('role', 'lawyer')
+        .eq('is_active', true)
+        .order('full_name')
+      setLawyers((data || []).map(u => ({ id: u.id, label: u.full_name })))
+    }
+    void loadLawyers()
+  }, [supabase])
+
+  // Load clients
+  useEffect(() => {
+    async function loadClients() {
+      const { data } = await supabase
+        .from('clients')
+        .select('id, name')
+        .order('name')
+      setClients((data || []).map(c => ({ id: c.id, label: c.name })))
+    }
+    void loadClients()
+  }, [supabase])
+
   // Unsaved changes guard
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -118,11 +144,6 @@ export default function NewCasePage() {
 
   const update = (field: keyof FormData, value: string | undefined | null) => {
     setFormData(prev => ({ ...prev, [field]: value || '' }))
-    setIsDirty(true)
-  }
-
-  const handleClientChange = (clientId: string, clientName: string) => {
-    setFormData(prev => ({ ...prev, client_id: clientId, client_name: clientName }))
     setIsDirty(true)
   }
 
@@ -231,7 +252,7 @@ export default function NewCasePage() {
       <div className="flex-none flex items-center justify-between border-b px-6 py-4 bg-card">
         <div className="flex items-center gap-4">
           <Link href="/cases">
-            <Button variant="outline" size="icon" className="h-9 w-9">
+            <Button variant="outline" size="icon" className="h-8 w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -240,17 +261,16 @@ export default function NewCasePage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <ImportExportToolbar
             onDownloadTemplate={handleDownloadTemplate}
-            onExport={handleDownloadTemplate}
             onImport={handleImport}
             importLabel="Şablon Yükle"
             templateLabel="Şablon İndir"
-            exportLabel="Şablonu Tekrar İndir"
           />
-          <Button variant="ghost" onClick={handleCancel}>İptal</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="px-6">
+          <div className="w-px h-6 bg-border mx-2" />
+          <Button variant="outline" onClick={handleCancel} className="h-8">İptal</Button>
+          <Button onClick={handleSubmit} disabled={loading} className="h-8 px-4">
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             {loading ? 'Kaydediliyor...' : 'Kaydet'}
           </Button>
@@ -261,23 +281,31 @@ export default function NewCasePage() {
       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-12 divide-y md:divide-y-0 md:divide-x overflow-y-auto">
         
         {/* KOLON 1: TARAFLAR */}
-        <div className="lg:col-span-3 flex flex-col p-6 space-y-6">
+        <div className="lg:col-span-3 flex flex-col p-6 space-y-4">
           <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Taraflar</h2>
 
           <div className="space-y-4">
-            <LawyerSelect 
-              label="Sorumlu Avukat"
-              value={formData.lawyer_id} 
-              onChange={(v) => update('lawyer_id', v || '')} 
-              required
-            />
-            
-            <ClientSelect 
-              label="Müvekkil"
-              value={formData.client_id} 
-              onChange={handleClientChange} 
-              required
-            />
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Sorumlu Avukat <span className="text-destructive">*</span></Label>
+              <UnifiedSelect
+                value={formData.lawyer_id}
+                onChange={(v) => update('lawyer_id', v)}
+                items={lawyers}
+                searchable
+                placeholder="Seçiniz"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Müvekkil <span className="text-destructive">*</span></Label>
+              <UnifiedSelect
+                value={formData.client_id}
+                onChange={(v) => setFormData(prev => ({ ...prev, client_id: v || '' }))}
+                items={clients}
+                searchable
+                placeholder="Seçiniz"
+              />
+            </div>
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">Müvekkil Cinsi</Label>
@@ -293,6 +321,7 @@ export default function NewCasePage() {
             <div className="space-y-2">
               <Label className="text-sm font-medium">Karşı Taraf <span className="text-destructive">*</span></Label>
               <Input 
+                className="w-full bg-white border-input"
                 value={formData.opposing_party}
                 onChange={(e) => update('opposing_party', e.target.value)}
                 placeholder="Örn: X Sigorta A.Ş."
@@ -311,18 +340,18 @@ export default function NewCasePage() {
         </div>
 
         {/* KOLON 2: DAVA BİLGİLERİ */}
-        <div className="lg:col-span-6 flex flex-col p-6 space-y-6 bg-muted/10">
+        <div className="lg:col-span-6 flex flex-col p-6 space-y-4 bg-card/50 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Dava Bilgileri</h2>
             
             {/* Quick Status Bar */}
             {statuses.length > 0 && (
-               <div className="flex bg-background border rounded-md p-1 shadow-sm">
+               <div className="flex bg-background border rounded-lg p-1 shadow-sm">
                  {statuses.slice(0, MAX_QUICK_STATUSES).map((st) => (
                    <button 
                      key={st.id} 
                      onClick={() => update('status_id', st.id)}
-                     className={cn("text-xs px-3 py-1.5 rounded transition-colors", formData.status_id === st.id ? "bg-primary text-primary-foreground font-medium" : "text-muted-foreground hover:bg-muted font-medium")}
+                     className={cn("text-xs px-3 py-2 h-8 rounded transition-colors", formData.status_id === st.id ? "bg-primary text-primary-foreground font-medium" : "text-muted-foreground hover:bg-muted font-medium")}
                    >
                      {st.label}
                    </button>
@@ -334,15 +363,12 @@ export default function NewCasePage() {
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label className="text-sm font-medium">Açılma Tarihi <span className="text-destructive">*</span></Label>
-              <div className="relative">
-                <Input 
-                  type="date" 
-                  className="pl-10"
-                  value={formData.opened_at} 
-                  onChange={(e) => update('opened_at', e.target.value)} 
-                />
-                <Calendar className="w-4 h-4 text-muted-foreground absolute left-3 top-3" />
-              </div>
+              <Input 
+                type="date" 
+                className="w-full bg-white border-input"
+                value={formData.opened_at} 
+                onChange={(e) => update('opened_at', e.target.value)} 
+              />
             </div>
 
             <div className="space-y-2">
@@ -350,39 +376,33 @@ export default function NewCasePage() {
               <div className="flex gap-2">
                 <Input 
                   type="number" 
-                  placeholder="0.00" 
-                  className="flex-1"
+                  className="flex-1 bg-white border-input"
                   value={formData.case_value} 
                   onChange={(e) => update('case_value', e.target.value)} 
                 />
-                <Select value={formData.currency} onValueChange={(v) => update('currency', v)}>
-                  <SelectTrigger className="w-24 h-11">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencyItems.length > 0 ? currencyItems.map((c) => (
-                      <SelectItem key={c.id} value={c.label}>{c.label}</SelectItem>
-                    )) : (
-                      <>
-                        <SelectItem value="TRY">TRY</SelectItem>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="EUR">EUR</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
+                <UnifiedSelect
+                  value={formData.currency}
+                  onChange={(v) => update('currency', v || '')}
+                  items={currencyItems.length > 0 ? currencyItems.map(c => ({ id: c.label, label: c.label })) : [
+                    { id: 'TRY', label: 'TRY' },
+                    { id: 'USD', label: 'USD' },
+                    { id: 'EUR', label: 'EUR' }
+                  ]}
+                  searchable
+                  className="w-24"
+                />
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
              <Label className="text-sm font-medium">Dava Türü <span className="text-destructive">*</span></Label>
-             <FormFieldSelectWithId
-                label=""
+             <UnifiedSelect
                 value={formData.case_type_id}
-                onValueChange={(v) => update('case_type_id', v || '')}
-                items={caseTypes}
-                placeholder="Dava türünü seçin"
+                onChange={(v) => update('case_type_id', v || '')}
+                items={caseTypes.map(c => ({ id: c.id, label: c.label || c.id }))}
+                placeholder="Dava türü seçiniz"
+                searchable
               />
           </div>
 
@@ -390,7 +410,7 @@ export default function NewCasePage() {
             <div className="space-y-2">
               <Label className="text-sm font-medium">Açıklama / Konu Özeti</Label>
               <Textarea 
-                className="h-28 resize-none bg-background" 
+                className="h-28 resize-none bg-white w-full px-3 py-2 border-input" 
                 placeholder="Dava detayları..." 
                 value={formData.description} 
                 onChange={(e) => update('description', e.target.value)} 
@@ -400,7 +420,7 @@ export default function NewCasePage() {
             <div className="space-y-2">
               <Label className="text-sm font-medium">Dahili Notlar</Label>
               <Textarea 
-                className="h-28 resize-none bg-background text-muted-foreground" 
+                className="h-28 resize-none bg-white w-full px-3 py-2 border-input" 
                 placeholder="Ofis içi özel notlarınız..." 
                 value={formData.notes} 
                 onChange={(e) => update('notes', e.target.value)} 
@@ -411,69 +431,70 @@ export default function NewCasePage() {
         </div>
 
         {/* KOLON 3: MAHKEME BİLGİLERİ */}
-        <div className="lg:col-span-3 flex flex-col p-6 space-y-6">
+        <div className="lg:col-span-3 flex flex-col p-6 space-y-4">
           <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Mahkeme Bilgileri</h2>
 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">İl</Label>
-                <Select value={formData.court_city} onValueChange={(v) => update('court_city', v)}>
-                  <SelectTrigger className="h-11"><SelectValue placeholder="Seç" /></SelectTrigger>
-                  <SelectContent>
-                    {cityItems.map((city) => (
-                      <SelectItem key={city.id} value={city.label}>{city.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <UnifiedSelect
+                  value={formData.court_city}
+                  onChange={(v) => update('court_city', v || '')}
+                  items={cityItems.map(c => ({ id: c.label, label: c.label }))}
+                  placeholder="Seçiniz"
+                  searchable
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">İlçe</Label>
-                <Input 
-                  placeholder="İlçe adı" 
-                  value={formData.court_district} 
-                  onChange={(e) => update('court_district', e.target.value)} 
+                <Input
+                  className="w-full bg-white border-input"
+                  placeholder="İlçe adı"
+                  value={formData.court_district}
+                  onChange={(e) => update('court_district', e.target.value)}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
                <Label className="text-sm font-medium">Mahkeme Türü</Label>
-               <FormFieldSelectWithId
-                  label=""
+               <UnifiedSelect
                   value={formData.court_type_id}
-                  onValueChange={(v) => update('court_type_id', v || '')}
-                  items={courtTypes}
-                  placeholder="Örn: Asliye Hukuk"
+                  onChange={(v) => update('court_type_id', v || '')}
+                  items={courtTypes.map(c => ({ id: c.id, label: c.label || c.id }))}
+                  placeholder="Mahkeme türü seçiniz"
+                  searchable
                 />
             </div>
 
             <div className="space-y-2">
                <Label className="text-sm font-medium">Dosya Konumu / Yeri</Label>
-               <FormFieldSelectWithId
-                  label=""
+               <UnifiedSelect
                   value={formData.file_type_id}
-                  onValueChange={(v) => update('file_type_id', v || '')}
-                  items={fileTypes}
-                  placeholder="Esas vb."
+                  onChange={(v) => update('file_type_id', v || '')}
+                  items={fileTypes.map(f => ({ id: f.id, label: f.label || f.id }))}
+                  placeholder="Dosya konumu seçiniz"
+                  searchable
                 />
             </div>
 
             <div className="p-4 border rounded-lg bg-muted/10 space-y-4 mt-2">
-              <div className="flex items-center gap-2">
-                <div className="space-y-1 w-20">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
                   <Label className="text-sm font-medium">Yıl</Label>
-                  <Input type="number" placeholder="202X" value={formData.file_year} onChange={(e) => update('file_year', e.target.value)} />
+                  <Input type="number" className="w-full bg-white border-input" placeholder="202X" value={formData.file_year} onChange={(e) => update('file_year', e.target.value)} />
                 </div>
-                <div className="space-y-1 flex-1">
+                <div className="space-y-2">
                   <Label className="text-sm font-medium">Esas Numarası</Label>
-                  <Input placeholder="Esas / Dosya No" value={formData.file_no} onChange={(e) => update('file_no', e.target.value)} />
+                  <Input className="w-full bg-white border-input" placeholder="Esas / Dosya No" value={formData.file_no} onChange={(e) => update('file_no', e.target.value)} />
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <Label className="text-sm font-medium">Karar / Sıra Numarası</Label>
                 <Input 
+                  className="w-full bg-white border-input"
                   placeholder="Mahkeme karar numarası" 
                   value={formData.court_no} 
                   onChange={(e) => update('court_no', e.target.value)} 
