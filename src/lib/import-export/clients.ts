@@ -5,7 +5,7 @@ export interface ClientImportRow {
   type: 'individual' | 'company'
   phone: string | null
   email: string | null
-  tax_no: string | null
+  tax_number: string | null
   address: string | null
 }
 
@@ -18,25 +18,71 @@ export const clientImportDefinition: ImportDefinition<ClientImportRow> = {
   fileName: 'muvvekkil-sablon.xlsx',
   sheetName: 'Müvekkiller',
   headers: ['Ad', 'Tür', 'Telefon', 'E-posta', 'Vergi No', 'Adres'],
+  columns: [
+    {
+      key: 'name',
+      header: 'Ad',
+      required: true,
+      description: 'Müvekkilin adı veya şirket unvanı girilmelidir.',
+      example: 'Acme Hukuk Danışmanlık Ltd. Şti.',
+    },
+    {
+      key: 'type',
+      header: 'Tür',
+      required: true,
+      description: 'Yalnızca Bireysel veya Şirket değeri kullanılmalıdır.',
+      example: 'Şirket',
+      options: ['Bireysel', 'Şirket'],
+    },
+    {
+      key: 'phone',
+      header: 'Telefon',
+      description: 'Telefon numarasını başında 0 olmadan girin.',
+      example: '5321112233',
+    },
+    {
+      key: 'email',
+      header: 'E-posta',
+      description: 'Geçerli bir e-posta adresi girin.',
+      example: 'info@acme.com',
+    },
+    {
+      key: 'tax_number',
+      header: 'Vergi No',
+      description: 'Varsa 10 haneli vergi numarası girin.',
+      example: '1234567890',
+    },
+    {
+      key: 'address',
+      header: 'Adres',
+      description: 'Müvekkilin açık adresini girebilirsiniz.',
+      example: 'İstanbul / Kadıköy',
+    },
+  ],
+  instructions: [
+    'Ad ve Tür alanları zorunludur.',
+    'Tür alanında yalnızca Bireysel veya Şirket değeri kullanılmalıdır.',
+    'Telefon gibi sayısal görünen alanları metin olarak girmeniz önerilir.',
+  ],
   toRow: (item) => ({
     'Ad': item.name,
-    'Tür': item.type,
+    'Tür': item.type === 'company' ? 'Şirket' : 'Bireysel',
     'Telefon': item.phone || '',
     'E-posta': item.email || '',
-    'Vergi No': item.tax_no || '',
+    'Vergi No': item.tax_number || '',
     'Adres': item.address || '',
   }),
   fromRow: (row) => {
     const name = String(row['Ad'] || '').trim()
-    const rawType = String(row['Tür'] || '').trim().toLowerCase()
+    const rawType = String(row['Tür'] || '').trim().toLocaleLowerCase('tr-TR')
     const errors: string[] = []
 
     if (!name) {
-      errors.push('Ad zorunludur')
+      errors.push('Ad alanı zorunludur. Lütfen müvekkil adını veya şirket unvanını girin.')
     }
 
     if (rawType !== 'company' && rawType !== 'şirket' && rawType !== 'individual' && rawType !== 'bireysel') {
-      errors.push("Tür 'Bireysel' veya 'Şirket' olmalıdır")
+      errors.push("Tür alanı hatalı. Lütfen 'Bireysel' veya 'Şirket' değerlerinden birini kullanın.")
     }
 
     if (errors.length > 0) {
@@ -51,7 +97,7 @@ export const clientImportDefinition: ImportDefinition<ClientImportRow> = {
         type,
         phone: normalizeString(row['Telefon']),
         email: normalizeString(row['E-posta']),
-        tax_no: normalizeString(row['Vergi No']),
+        tax_number: normalizeString(row['Vergi No']),
         address: normalizeString(row['Adres']),
       },
     }
@@ -63,7 +109,7 @@ export function mapClientForExport(client: {
   type: 'individual' | 'company'
   phone: string | null
   email: string | null
-  tax_no: string | null
+  tax_number: string | null
   address?: string | null
 }): ClientImportRow {
   return {
@@ -71,7 +117,7 @@ export function mapClientForExport(client: {
     type: client.type,
     phone: client.phone,
     email: client.email,
-    tax_no: client.tax_no,
+    tax_number: client.tax_number,
     address: client.address || null,
   }
 }

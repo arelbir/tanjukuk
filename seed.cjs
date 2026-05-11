@@ -1,7 +1,11 @@
 const { createClient } = require('@supabase/supabase-js')
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://prooslgiozmnmrwtxczp.supabase.co'
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_eJczlGjOUOq1sgNmfRHE-w_K2YwaW_Z'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_URL ve NEXT_PUBLIC_SUPABASE_ANON_KEY zorunludur')
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 

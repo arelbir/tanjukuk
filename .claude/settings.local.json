@@ -7,7 +7,8 @@
       "Bash(supabase --version)",
       "mcp__85e9a593-1d39-4dfa-ad71-19e23d851f4f__get_project",
       "mcp__Claude_in_Chrome__tabs_context_mcp",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(npm run *)"
     ]
   }
 }

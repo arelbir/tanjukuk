@@ -18,7 +18,8 @@ export interface Event {
   created_at: string
   updated_at: string
   case?: {
-    case_code: string | null
+    file_year: number | null
+    file_no: number | null
     client: {
       name: string | null
     } | null

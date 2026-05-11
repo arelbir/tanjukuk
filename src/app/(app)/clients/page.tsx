@@ -18,11 +18,12 @@ import { CLIENT_TYPE_MAPPING } from '@/types/mappings'
 import { ImportExportToolbar } from '@/components/import-export-toolbar'
 import {
   clientImportDefinition,
-  createTemplateWorkbook,
   createWorkbookFromDefinition,
+  downloadExampleTemplate,
+  downloadTemplate,
   downloadWorkbook,
+  executeImport,
   mapClientForExport,
-  parseWorkbook,
 } from '@/lib/import-export'
 
 interface Client {
@@ -31,7 +32,7 @@ interface Client {
   type: 'individual' | 'company'
   phone: string | null
   email: string | null
-  tax_no: string | null
+  tax_number: string | null
   address?: string | null
   created_at: string
 }
@@ -41,7 +42,7 @@ interface FormData {
   type: string
   phone: string
   email: string
-  tax_no: string
+  tax_number: string
   address: string
 }
 
@@ -57,7 +58,7 @@ export default function ClientsPage() {
   const supabase = createClient()
 
   const drawer = useFormDrawer<FormData>({
-    name: '', type: 'individual', phone: '', email: '', tax_no: '', address: ''
+    name: '', type: 'individual', phone: '', email: '', tax_number: '', address: ''
   })
 
   useEffect(() => {
@@ -90,15 +91,13 @@ export default function ClientsPage() {
   const handleSubmit = async () => {
     setSaving(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
       const { error } = await supabase.from('clients').insert({
         name: drawer.values.name,
         type: drawer.values.type,
         phone: drawer.values.phone || null,
         email: drawer.values.email || null,
-        tax_no: drawer.values.tax_no || null,
+        tax_number: drawer.values.tax_number || null,
         address: drawer.values.address || null,
-        created_by: user?.id
       })
       if (error) throw error
       toast.success('Müvekkil eklendi!')
@@ -114,8 +113,11 @@ export default function ClientsPage() {
   }
 
   const handleDownloadTemplate = () => {
-    const workbook = createTemplateWorkbook(clientImportDefinition)
-    downloadWorkbook(workbook, clientImportDefinition.fileName)
+    downloadTemplate(clientImportDefinition)
+  }
+
+  const handleDownloadExampleTemplate = () => {
+    downloadExampleTemplate(clientImportDefinition, 'muvvekkil-sablon-ornek.xlsx')
   }
 
   const handleExport = () => {
@@ -124,33 +126,22 @@ export default function ClientsPage() {
   }
 
   const handleImport = async (file: File) => {
-    const parsed = await parseWorkbook(file, clientImportDefinition)
+    const result = await executeImport({
+      file,
+      definition: clientImportDefinition,
+      insertRows: (rows) => supabase.from('clients').insert(rows),
+      errorFileName: 'muvvekkil-import-hatalari.xlsx',
+    })
 
-    if (parsed.invalid.length > 0) {
-      toast.error(`${parsed.invalid.length} satır doğrulamadan geçemedi`)
+    if (result.invalidCount > 0) {
+      toast.error(`${result.invalidCount} satır hatalı bulundu ve hata dosyası indirildi`)
     }
 
-    if (parsed.valid.length === 0) {
+    if (result.inserted === 0) {
       return
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    const payload = parsed.valid.map((item) => ({
-      ...item,
-      created_by: user?.id,
-    }))
-
-    const { error } = await supabase.from('clients').insert(payload)
-
-    if (error) {
-      toast.error('Import hatası: ' + error.message)
-      return
-    }
-
-    toast.success(`${parsed.valid.length} müvekkil içe aktarıldı`)
+    toast.success(`${result.inserted} müvekkil içe aktarıldı`)
     const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false })
     setClients((data as Client[] | null) || [])
   }
@@ -163,11 +154,13 @@ export default function ClientsPage() {
           <div className="flex">
             <ImportExportToolbar
               onDownloadTemplate={handleDownloadTemplate}
+              onDownloadExampleTemplate={handleDownloadExampleTemplate}
               onExport={handleExport}
               onImport={handleImport}
               importLabel="Şablon Yükle"
               templateLabel="Şablon İndir"
               exportLabel="Müvekkilleri Dışa Aktar"
+              helperText="Önce örnek doldurulmuş şablonu inceleyin. Zorunlu alanlar ve format açıklamaları dosya içinde yer alır."
             />
             <Button variant="outline" onClick={() => drawer.openForCreate()} className="h-8 rounded-l-none border-l-0">
               <Plus className="h-4 w-4 mr-2" /> Yeni Müvekkil

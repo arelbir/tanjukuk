@@ -36,11 +36,17 @@ Gerekli değişkenler:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `CRON_SECRET`
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT` (opsiyonel, varsayılan bir mailto değeri ile çalışır)
 
 Notlar:
 
 - `SUPABASE_SERVICE_ROLE_KEY`, yalnızca sunucu tarafındaki admin işlemlerinde kullanılır.
 - Admin kullanıcı daveti `/api/admin/invite` route'u üzerinden çalışır ve service role key gerektirir.
+- `/api/internal/reminders/run` endpoint'i `CRON_SECRET` gerektirir.
+- Push bildirimleri için VAPID anahtarları tanımlanmazsa uygulama açılır, ancak push gönderimi devre dışı kalır.
 
 ## Kurulum
 

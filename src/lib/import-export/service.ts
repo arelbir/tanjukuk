@@ -29,6 +29,12 @@ export function downloadTemplate<T>(definition: ImportDefinition<T>) {
   downloadWorkbook(workbook, definition.fileName)
 }
 
+export function downloadExampleTemplate<T>(definition: ImportDefinition<T>, fileName?: string) {
+  const workbook = createTemplateWorkbook(definition, { includeExampleRow: true })
+  const targetFileName = fileName || definition.fileName.replace('.xlsx', '-ornek.xlsx')
+  downloadWorkbook(workbook, targetFileName)
+}
+
 export function exportRows<T>(definition: ImportDefinition<T>, data: T[], fileName?: string) {
   const workbook = createWorkbookFromDefinition(definition, data)
   downloadWorkbook(workbook, fileName || definition.fileName)
@@ -44,7 +50,7 @@ export async function executeImport<TParsed, TInsert = TParsed>({
   const parsed = await parseWorkbook(file, definition)
 
   if (parsed.invalid.length > 0) {
-    const workbook = createErrorWorkbook(parsed.invalid)
+    const workbook = createErrorWorkbook({ definition, invalid: parsed.invalid })
     downloadWorkbook(workbook, errorFileName || `import-errors-${definition.sheetName}.xlsx`)
   }
 
@@ -82,21 +88,21 @@ export async function executeResolvedImport<TRow, TResolved, TInsert = TResolved
   const resolvedValid: TResolved[] = []
   const invalid = [...parsed.invalid]
 
-  for (const row of parsed.valid) {
-    const result = await resolveRow(row)
+  for (const row of parsed.validRows) {
+    const result = await resolveRow(row.value)
     if (result.value && !(result.errors && result.errors.length > 0)) {
       resolvedValid.push(result.value)
     } else {
       invalid.push({
-        rowNumber: -1,
-        values: row as unknown as Record<string, unknown>,
+        rowNumber: row.rowNumber,
+        values: row.source,
         errors: result.errors || ['Resolver hatası'],
       })
     }
   }
 
   if (invalid.length > 0) {
-    const workbook = createErrorWorkbook(invalid)
+    const workbook = createErrorWorkbook({ definition, invalid })
     downloadWorkbook(workbook, errorFileName || `import-errors-${definition.sheetName}.xlsx`)
   }
 

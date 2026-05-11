@@ -15,7 +15,7 @@ import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import { PAYMENT_STATUS_MAPPING, getFieldLabel } from '@/types/mappings'
 import { ImportExportToolbar } from '@/components/import-export-toolbar'
-import { executeResolvedImport, exportRows, downloadTemplate, incomeImportDefinition, buildClientNameResolverMap, buildLookupResolverMap } from '@/lib/import-export'
+import { executeResolvedImport, exportRows, downloadExampleTemplate, downloadTemplate, incomeImportDefinition, buildClientNameResolverMap, buildLookupResolverMap } from '@/lib/import-export'
 
 interface IncomeRelation {
   label?: string
@@ -156,6 +156,10 @@ export default function IncomePage() {
     downloadTemplate(incomeImportDefinition)
   }
 
+  const handleDownloadExampleTemplate = () => {
+    downloadExampleTemplate(incomeImportDefinition, 'gelir-sablon-ornek.xlsx')
+  }
+
   const handleExport = () => {
     exportRows(
       incomeImportDefinition,
@@ -181,6 +185,18 @@ export default function IncomePage() {
       buildLookupResolverMap(supabase, 'income_category'),
     ])
 
+    const paymentStatusMap = new Map([
+      ['ödendi', 'paid'],
+      ['odendi', 'paid'],
+      ['paid', 'paid'],
+      ['bekliyor', 'pending'],
+      ['beklemede', 'pending'],
+      ['pending', 'pending'],
+      ['kısmi', 'partial'],
+      ['kismi', 'partial'],
+      ['partial', 'partial'],
+    ])
+
     const result = await executeResolvedImport({
       file,
       definition: incomeImportDefinition,
@@ -188,9 +204,11 @@ export default function IncomePage() {
         const errors: string[] = []
         const clientId = row.client_name ? clientMap.get(row.client_name.trim().toLocaleLowerCase('tr-TR')) || null : null
         const categoryId = categoryMap.get(row.category_label.trim().toLocaleLowerCase('tr-TR')) || null
+        const paymentStatus = paymentStatusMap.get(row.payment_status.trim().toLocaleLowerCase('tr-TR')) || null
 
-        if (row.client_name && !clientId) errors.push('client_name eşleşmedi')
-        if (!categoryId) errors.push('category_label eşleşmedi')
+        if (row.client_name && !clientId) errors.push('Müvekkil Adı alanındaki değer sistemde bulunamadı.')
+        if (!categoryId) errors.push('Kategori alanındaki değer sistemde bulunamadı.')
+        if (!paymentStatus) errors.push('Ödeme Durumu alanı geçersiz. Lütfen Ödendi, Bekliyor veya Kısmi değerlerinden birini kullanın.')
         if (errors.length > 0) return { errors }
 
         return {
@@ -199,7 +217,7 @@ export default function IncomePage() {
             category_id: categoryId,
             record_date: row.record_date,
             amount: row.amount,
-            payment_status: row.payment_status,
+            payment_status: paymentStatus,
             description: row.description,
           },
         }
@@ -218,7 +236,7 @@ export default function IncomePage() {
       toast.error(`${result.invalidCount} satır hatalı bulundu ve hata dosyası indirildi`)
     }
 
-  if (result.inserted > 0) {
+    if (result.inserted > 0) {
       toast.success(`${result.inserted} gelir kaydı içe aktarıldı`)
       const { data } = await supabase.from('income_records').select(`*, client:clients(name), category:lookup_values!income_records_category_id_fkey(label)`).order('record_date', { ascending: false })
       setIncomes(data || [])
@@ -235,11 +253,13 @@ export default function IncomePage() {
           <div className="flex">
             <ImportExportToolbar
               onDownloadTemplate={handleDownloadTemplate}
+              onDownloadExampleTemplate={handleDownloadExampleTemplate}
               onExport={handleExport}
               onImport={handleImport}
               templateLabel="Şablon İndir"
               importLabel="Şablon Yükle"
               exportLabel="Gelirleri Dışa Aktar"
+              helperText="Örnek şablonda zorunlu alanları ve geçerli ödeme durumu değerlerini görebilirsiniz."
             />
             <Button variant="outline" onClick={() => drawer.openForCreate()} className="h-8 rounded-l-none border-l-0">
               <Plus className="h-4 w-4 mr-2" /> Yeni Gelir

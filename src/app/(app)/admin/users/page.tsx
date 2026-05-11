@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -28,7 +27,6 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [sending, setSending] = useState(false)
-  const supabase = createClient()
 
   const drawer = useFormDrawer<{ email: string; role: string; full_name: string }>({
     email: '',
@@ -38,21 +36,30 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     async function loadUsers() {
-      let query = supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false })
+      setLoading(true)
+      try {
+        const params = new URLSearchParams()
+        if (search.trim()) {
+          params.set('search', search.trim())
+        }
 
-      if (search) {
-        query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`)
+        const response = await fetch(`/api/admin/users${params.size ? `?${params.toString()}` : ''}`)
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Kullanıcılar yüklenemedi')
+        }
+
+        setUsers(result.users || [])
+      } catch (error: unknown) {
+        const err = error as { message: string }
+        toast.error('Hata: ' + err.message)
+      } finally {
+        setLoading(false)
       }
-
-      const { data } = await query
-      setUsers(data || [])
-      setLoading(false)
     }
-    loadUsers()
-  }, [supabase, search])
+    void loadUsers()
+  }, [search])
 
   const handleInvite = async () => {
     setSending(true)
@@ -78,8 +85,11 @@ export default function AdminUsersPage() {
       toast.success(`${drawer.values.email} adresine davet gönderildi!`)
       drawer.close()
 
-      const { data } = await supabase.from('users').select('*').order('created_at', { ascending: false })
-      setUsers(data || [])
+      const refreshResponse = await fetch('/api/admin/users')
+      const refreshResult = await refreshResponse.json()
+      if (refreshResponse.ok) {
+        setUsers(refreshResult.users || [])
+      }
     } catch (error: unknown) {
       const err = error as { message: string }
       toast.error('Hata: ' + err.message)
@@ -89,33 +99,57 @@ export default function AdminUsersPage() {
   }
 
   const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
-    const { error } = await supabase
-      .from('users')
-      .update({ is_active: !currentStatus })
-      .eq('id', userId)
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          is_active: !currentStatus,
+        }),
+      })
 
-    if (error) {
-      toast.error('Hata: ' + error.message)
-      return
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Kullanıcı durumu güncellenemedi')
+      }
+
+      toast.success('Kullanıcı durumu güncellendi')
+      setUsers(users.map(u => u.id === userId ? { ...u, is_active: result.user.is_active } : u))
+    } catch (error: unknown) {
+      const err = error as { message: string }
+      toast.error('Hata: ' + err.message)
     }
-
-    toast.success('Kullanıcı durumu güncellendi')
-    setUsers(users.map(u => u.id === userId ? { ...u, is_active: !currentStatus } : u))
   }
 
   const updateUserRole = async (userId: string, newRole: string) => {
-    const { error } = await supabase
-      .from('users')
-      .update({ role: newRole })
-      .eq('id', userId)
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          role: newRole,
+        }),
+      })
 
-    if (error) {
-      toast.error('Hata: ' + error.message)
-      return
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Rol güncellenemedi')
+      }
+
+      toast.success('Rol güncellendi')
+      setUsers(users.map(u => u.id === userId ? { ...u, role: result.user.role } : u))
+    } catch (error: unknown) {
+      const err = error as { message: string }
+      toast.error('Hata: ' + err.message)
     }
-
-    toast.success('Rol güncellendi')
-    setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u))
   }
 
   return (

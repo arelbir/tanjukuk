@@ -1,19 +1,19 @@
 import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 
-// Configure VAPID
+// Configure VAPID lazily so the app can boot without push envs
 const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 const privateVapidKey = process.env.VAPID_PRIVATE_KEY
+const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:no-reply@example.com'
 
-if (!publicVapidKey || !privateVapidKey) {
-  throw new Error('VAPID keys are not configured')
+function ensurePushConfigured() {
+  if (!publicVapidKey || !privateVapidKey) {
+    return false
+  }
+
+  webpush.setVapidDetails(vapidSubject, publicVapidKey, privateVapidKey)
+  return true
 }
-
-webpush.setVapidDetails(
-  'mailto:your-email@example.com', // Replace with your email
-  publicVapidKey,
-  privateVapidKey
-)
 
 export interface PushSubscription {
   endpoint: string
@@ -43,6 +43,10 @@ export async function sendPushNotification(
   subscription: PushSubscription,
   payload: PushPayload
 ): Promise<{ success: boolean; error?: string }> {
+  if (!ensurePushConfigured()) {
+    return { success: false, error: 'Push is not configured' }
+  }
+
   try {
     await webpush.sendNotification(subscription, JSON.stringify(payload))
     return { success: true }
@@ -84,10 +88,7 @@ export async function sendPushNotificationToUser(
   for (const sub of subscriptions || []) {
     const subscription: PushSubscription = {
       endpoint: sub.endpoint,
-      keys: {
-        p256dh: sub.p256dh,
-        auth: sub.auth,
-      },
+      keys: sub.keys,
     }
 
     const result = await sendPushNotification(subscription, payload)

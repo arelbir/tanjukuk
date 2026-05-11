@@ -81,18 +81,18 @@ export function useMultipleLookups(groupKeys: string[]) {
 export function useLookupsAdmin() {
   const [lookups, setLookups] = useState<LookupItem[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   const loadLookups = useCallback(async () => {
-    const { data } = await supabase
-      .from('lookup_values')
-      .select('*')
-      .order('group_key', { ascending: true })
-      .order('sort_order', { ascending: true })
+    const response = await fetch('/api/admin/lookups')
+    const result = await response.json()
 
-    setLookups(data || [])
+    if (!response.ok) {
+      throw new Error(result.error || 'Lookup verileri yüklenemedi')
+    }
+
+    setLookups(result.lookups || [])
     setLoading(false)
-  }, [supabase])
+  }, [])
 
   const buildTree = useCallback((groupKey: string): TreeNode[] => {
     const groupItems = lookups.filter(l => l.group_key === groupKey)
@@ -119,36 +119,80 @@ export function useLookupsAdmin() {
   }, [lookups])
 
   const addLookup = useCallback(async (value: Omit<LookupItem, 'id'>) => {
-    const { error } = await supabase.from('lookup_values').insert(value)
-    if (!error) {
+    try {
+      const response = await fetch('/api/admin/lookups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(value),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        return { error: { message: result.error || 'Lookup eklenemedi' } }
+      }
       await loadLookups()
+      return { error: null }
+    } catch (error) {
+      return { error: { message: error instanceof Error ? error.message : 'Lookup eklenemedi' } }
     }
-    return { error }
-  }, [supabase, loadLookups])
+  }, [loadLookups])
 
   const toggleLookup = useCallback(async (id: string, isActive: boolean) => {
-    const { error } = await supabase.from('lookup_values').update({ is_active: isActive }).eq('id', id)
-    if (!error) {
-      setLookups(prev => prev.map(l => l.id === id ? { ...l, is_active: isActive } : l))
+    try {
+      const response = await fetch('/api/admin/lookups', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, is_active: isActive }),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        return { error: { message: result.error || 'Lookup durumu güncellenemedi' } }
+      }
+      setLookups(prev => prev.map(l => l.id === id ? { ...l, is_active: result.lookup.is_active } : l))
+      return { error: null }
+    } catch (error) {
+      return { error: { message: error instanceof Error ? error.message : 'Lookup durumu güncellenemedi' } }
     }
-    return { error }
-  }, [supabase])
+  }, [])
 
   const deleteLookup = useCallback(async (id: string) => {
-    const { error } = await supabase.from('lookup_values').delete().eq('id', id)
-    if (!error) {
+    try {
+      const response = await fetch(`/api/admin/lookups?id=${id}`, {
+        method: 'DELETE',
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        return { error: { message: result.error || 'Lookup silinemedi' } }
+      }
       setLookups(prev => prev.filter(l => l.id !== id))
+      return { error: null }
+    } catch (error) {
+      return { error: { message: error instanceof Error ? error.message : 'Lookup silinemedi' } }
     }
-    return { error }
-  }, [supabase])
+  }, [])
 
   const updateLookup = useCallback(async (id: string, updates: Partial<LookupItem>) => {
-    const { error } = await supabase.from('lookup_values').update(updates).eq('id', id)
-    if (!error) {
-      setLookups(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l))
+    try {
+      const response = await fetch('/api/admin/lookups', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, ...updates }),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        return { error: { message: result.error || 'Lookup güncellenemedi' } }
+      }
+      setLookups(prev => prev.map(l => l.id === id ? { ...l, ...result.lookup } : l))
+      return { error: null }
+    } catch (error) {
+      return { error: { message: error instanceof Error ? error.message : 'Lookup güncellenemedi' } }
     }
-    return { error }
-  }, [supabase])
+  }, [])
 
   return { 
     lookups, 

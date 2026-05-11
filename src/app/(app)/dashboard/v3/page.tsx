@@ -34,14 +34,14 @@ const allLenses: { id: LensType; label: string; icon: LucideIcon; description: s
     label: 'Takvim',
     icon: CalendarDays,
     description: 'Duruşma takvimi ve randevular',
-    roles: ['lawyer', 'assistant']
+    roles: ['admin', 'lawyer', 'assistant']
   },
   {
     id: 'cases',
     label: 'Dosyalar',
     icon: FileText,
     description: 'Aktif dosyalar ve durumlar',
-    roles: ['lawyer', 'assistant']
+    roles: ['admin', 'lawyer', 'assistant']
   },
   {
     id: 'finance',

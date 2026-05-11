@@ -24,10 +24,53 @@ export const incomeImportDefinition: ImportDefinition<IncomeImportRow> = {
   fileName: 'gelir-sablon.xlsx',
   sheetName: 'Gelirler',
   headers: ['Müvekkil Adı', 'Kategori', 'Tarih', 'Tutar', 'Ödeme Durumu', 'Açıklama'],
+  columns: [
+    {
+      key: 'client_name',
+      header: 'Müvekkil Adı',
+      description: 'Opsiyoneldir. Girilirse sistemdeki müvekkil adıyla birebir eşleşmelidir.',
+      example: 'Ahmet Yılmaz',
+    },
+    {
+      key: 'category_label',
+      header: 'Kategori',
+      required: true,
+      description: 'Gelir kategorisi adı girilmelidir.',
+      example: 'Dava Ücreti',
+    },
+    {
+      key: 'record_date',
+      header: 'Tarih',
+      required: true,
+      description: 'YYYY-MM-DD formatında tarih girin.',
+      example: '2026-04-26',
+    },
+    {
+      key: 'amount',
+      header: 'Tutar',
+      required: true,
+      description: 'Yalnızca sayısal değer girin.',
+      example: 15000,
+    },
+    {
+      key: 'payment_status',
+      header: 'Ödeme Durumu',
+      required: true,
+      description: 'Ödendi, Bekliyor veya Kısmi değerlerinden biri olmalıdır.',
+      example: 'Ödendi',
+      options: ['Ödendi', 'Bekliyor', 'Kısmi'],
+    },
+    {
+      key: 'description',
+      header: 'Açıklama',
+      description: 'Gelir kaydına ait kısa açıklama girebilirsiniz.',
+      example: 'Nisan ayı danışmanlık tahsilatı',
+    },
+  ],
   instructions: [
-    'Müvekkil Adı opsiyoneldir ancak varsa sistemdeki müvekkil adıyla eşleşmelidir.',
-    'Kategori gelir kategorisi lookup label değeridir.',
-    "Ödeme Durumu örnekleri: Ödendi, Beklemede, Kısmi",
+    'Kategori alanı sistemde tanımlı gelir kategorilerinden biri olmalıdır.',
+    'Müvekkil Adı alanı opsiyoneldir ancak doldurulursa sistemde kayıtlı isimle eşleşmelidir.',
+    'Tarih alanını YYYY-MM-DD formatında girin.',
   ],
   toRow: (item) => ({
     'Müvekkil Adı': item.client_name,
@@ -44,10 +87,10 @@ export const incomeImportDefinition: ImportDefinition<IncomeImportRow> = {
     const payment_status = String(row['Ödeme Durumu'] || '').trim()
     const errors: string[] = []
 
-    if (!category_label) errors.push('Kategori zorunludur')
-    if (!record_date) errors.push('Tarih zorunludur')
-    if (amount === null) errors.push('Tutar sayısal olmalıdır')
-    if (!payment_status) errors.push('Ödeme Durumu zorunludur')
+    if (!category_label) errors.push('Kategori alanı zorunludur. Lütfen kategori bilgisini girin.')
+    if (!record_date) errors.push('Tarih alanı zorunludur. Lütfen tarihi YYYY-MM-DD formatında girin.')
+    if (amount === null) errors.push('Tutar alanı hatalı. Lütfen yalnızca sayısal bir değer girin.')
+    if (!payment_status) errors.push('Ödeme Durumu alanı zorunludur. Lütfen geçerli bir durum seçin.')
 
     if (errors.length > 0) return { errors }
 

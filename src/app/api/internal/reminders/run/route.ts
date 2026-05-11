@@ -3,10 +3,14 @@ import { findReminderCandidates } from '@/lib/reminders/candidates'
 import { batchDispatchReminders } from '@/lib/reminders/dispatch'
 
 // Secret key to protect the endpoint
-const CRON_SECRET = process.env.CRON_SECRET || 'your-secret-key-change-in-production'
+const CRON_SECRET = process.env.CRON_SECRET
 
 export async function POST(request: NextRequest) {
   // Verify secret key
+  if (!CRON_SECRET) {
+    return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 500 })
+  }
+
   const authHeader = request.headers.get('authorization')
   if (!authHeader || authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

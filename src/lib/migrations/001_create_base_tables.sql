@@ -55,16 +55,22 @@ CREATE TABLE IF NOT EXISTS cases (
   court_city VARCHAR(100),
   court_district VARCHAR(100),
   court_type_id UUID REFERENCES lookup_values(id) ON DELETE SET NULL,
+  court_no VARCHAR(50),
   case_type_id UUID REFERENCES lookup_values(id) ON DELETE SET NULL,
   status_id UUID REFERENCES lookup_values(id) ON DELETE SET NULL,
   opened_at DATE,
   case_value DECIMAL(15,2),
   currency VARCHAR(10) DEFAULT 'TRY',
+  file_year INTEGER,
+  file_no INTEGER,
+  file_type_id UUID REFERENCES lookup_values(id) ON DELETE SET NULL,
   description TEXT,
+  notes TEXT,
   verdict_result TEXT,
   verdict_for DECIMAL(15,2),
   verdict_against DECIMAL(15,2),
   lean_against VARCHAR(1), -- 'L' | 'K' | NULL
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -73,6 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_cases_lawyer ON cases(lawyer_id);
 CREATE INDEX IF NOT EXISTS idx_cases_client ON cases(client_id);
 CREATE INDEX IF NOT EXISTS idx_cases_status ON cases(status_id);
 CREATE INDEX IF NOT EXISTS idx_cases_type ON cases(case_type_id);
+CREATE INDEX IF NOT EXISTS idx_cases_file_type ON cases(file_type_id);
 
 -- Income records table
 CREATE TABLE IF NOT EXISTS income_records (
@@ -176,31 +183,45 @@ ALTER TABLE notification_deliveries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Users policies
-CREATE POLICY "Users can see all users" ON users FOR SELECT USING (true);
-CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can see all users" ON users FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 -- Lookup values policies
-CREATE POLICY "Anyone can view lookup values" ON lookup_values FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can view lookup values" ON lookup_values FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Admins can manage lookup values" ON lookup_values
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM users admin_user
+    WHERE admin_user.id = auth.uid() AND admin_user.role = 'admin'
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM users admin_user
+    WHERE admin_user.id = auth.uid() AND admin_user.role = 'admin'
+  )
+);
 
 -- Clients policies
-CREATE POLICY "Anyone can view clients" ON clients FOR SELECT USING (true);
-CREATE POLICY "Lawyers can create clients" ON clients FOR INSERT WITH CHECK (true);
-CREATE POLICY "Lawyers can update clients" ON clients FOR UPDATE WITH CHECK (true);
+CREATE POLICY "Authenticated users can view clients" ON clients FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can create clients" ON clients FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can update clients" ON clients FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 -- Cases policies
-CREATE POLICY "Anyone can view cases" ON cases FOR SELECT USING (true);
-CREATE POLICY "Lawyers can create cases" ON cases FOR INSERT WITH CHECK (true);
-CREATE POLICY "Lawyers can update cases" ON cases FOR UPDATE WITH CHECK (true);
+CREATE POLICY "Authenticated users can view cases" ON cases FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can create cases" ON cases FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can update cases" ON cases FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 -- Income records policies
-CREATE POLICY "Anyone can view income records" ON income_records FOR SELECT USING (true);
-CREATE POLICY "Lawyers can create income records" ON income_records FOR INSERT WITH CHECK (true);
-CREATE POLICY "Lawyers can update income records" ON income_records FOR UPDATE WITH CHECK (true);
+CREATE POLICY "Authenticated users can view income records" ON income_records FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can create income records" ON income_records FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can update income records" ON income_records FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 -- Expense records policies
-CREATE POLICY "Anyone can view expense records" ON expense_records FOR SELECT USING (true);
-CREATE POLICY "Lawyers can create expense records" ON expense_records FOR INSERT WITH CHECK (true);
-CREATE POLICY "Lawyers can update expense records" ON expense_records FOR UPDATE WITH CHECK (true);
+CREATE POLICY "Authenticated users can view expense records" ON expense_records FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can create expense records" ON expense_records FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can update expense records" ON expense_records FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 -- Notifications policies
 CREATE POLICY "Users can see own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);

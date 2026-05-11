@@ -1,5 +1,4 @@
--- Complete seed for all lookup values
--- This is a clean seed without any legacy data
+-- Seed lookup values for dropdowns
 
 -- 1. Kişi Türleri (entity_type)
 INSERT INTO lookup_values (group_key, label, sort_order, is_active) VALUES

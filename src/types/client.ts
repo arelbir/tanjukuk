@@ -4,9 +4,8 @@ export interface Client {
   type: 'individual' | 'company'
   phone: string | null
   email: string | null
-  tax_no: string | null
+  tax_number: string | null
   address: string | null
-  created_by: string | null
   created_at: string
   updated_at: string | null
 }
@@ -16,7 +15,7 @@ export interface ClientFormData {
   type: 'individual' | 'company'
   phone: string
   email: string
-  tax_no: string
+  tax_number: string
   address: string
 }
 

@@ -1,5 +1,3 @@
-import { Scale, Building2, User, Wallet, FileText, Gavel, MapPin, Users } from 'lucide-react'
-
 export type LookupGroupKey = 
   | 'case_type'
   | 'court_type'
@@ -20,26 +18,17 @@ export type LookupGroupKey =
   | `expense_sub_${string}`
   | `income_sub_${string}`
 
+type LookupIconKey = 'Scale' | 'Building2' | 'User' | 'Wallet' | 'FileText' | 'Gavel' | 'MapPin' | 'Users'
+
 export interface LookupGroupConfig {
   label: string
-  icon: keyof typeof iconMap
+  icon: LookupIconKey
   hierarchical?: boolean
   subKeyPrefix?: string
   subKeyTransform?: (label: string) => string
   description?: string
   category?: string
 }
-
-const iconMap = {
-  Scale,
-  Building2,
-  User,
-  Wallet,
-  FileText,
-  Gavel,
-  MapPin,
-  Users,
-} as const
 
 export const LOOKUP_CONFIG: Record<string, LookupGroupConfig> = {
   case_type: {

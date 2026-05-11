@@ -18,7 +18,7 @@ const PAGE_SIZE = 50
 
 export function useCases(initialFilters: CaseFilters = DEFAULT_FILTERS) {
   const [cases, setCases] = useState<Case[]>([])
-  const [lawyers, setLawyers] = useState<{ id: string; full_name: string }[]>([])
+  const [lawyers, setLawyers] = useState<{ id: string; full_name: string; email: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [filters, setFilters] = useState<CaseFilters>(initialFilters)
@@ -27,7 +27,7 @@ export function useCases(initialFilters: CaseFilters = DEFAULT_FILTERS) {
     const supabase = createClient()
     const { data } = await supabase
       .from('users')
-      .select('id, full_name')
+      .select('id, full_name, email')
       .eq('role', 'lawyer')
       .eq('is_active', true)
       .order('full_name')

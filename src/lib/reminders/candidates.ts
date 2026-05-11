@@ -1,6 +1,6 @@
 // Reminder candidates - finds events that need reminders to be scheduled
 import { createClient } from '@/lib/supabase/server'
-import { getEffectiveReminderPolicies, EventWithReminders, ReminderOffset } from './policies'
+import { getEffectiveReminderPolicies, EventWithReminders } from './policies'
 
 export interface ReminderCandidate {
   eventId: string
@@ -36,11 +36,10 @@ export async function findReminderCandidates(
   // 3. Are not cancelled
   const { data: events, error } = await supabase
     .from('events')
-    .select('id, event_type, title, scheduled_at, assigned_user_id, reminder_offsets')
+    .select('id, event_type, title, scheduled_at, lawyer_id')
     .gte('scheduled_at', lookbackDate.toISOString())
     .lte('scheduled_at', lookforwardDate.toISOString())
     .eq('is_completed', false)
-    .is('cancelled_at', null)
     .order('scheduled_at', { ascending: true })
 
   if (error) {
@@ -53,7 +52,6 @@ export async function findReminderCandidates(
   for (const event of events || []) {
     const eventWithReminders: EventWithReminders = {
       event_type: event.event_type,
-      reminder_offsets: event.reminder_offsets as ReminderOffset[] | undefined,
     }
 
     const policies = getEffectiveReminderPolicies(eventWithReminders)
@@ -81,7 +79,7 @@ export async function findReminderCandidates(
         eventTitle: event.title || event.event_type,
         eventType: event.event_type,
         scheduledAt: event.scheduled_at,
-        assignedUserId: event.assigned_user_id,
+        assignedUserId: event.lawyer_id,
         policies: activePolicies,
       })
     }
@@ -101,12 +99,17 @@ export async function checkDeliveryExists(
 ): Promise<boolean> {
   const supabase = await createClient()
 
-  const dedupeKey = `${eventId}-${userId}-${offsetMinutes}-${channel}`
+  const deliveryMetadata = {
+    event_id: eventId,
+    user_id: userId,
+    offset_minutes: offsetMinutes,
+  }
 
   const { data, error } = await supabase
     .from('notification_deliveries')
     .select('id')
-    .eq('dedupe_key', dedupeKey)
+    .eq('channel', channel)
+    .contains('metadata', deliveryMetadata)
     .single()
 
   if (error && error.code !== 'PGRST116') {

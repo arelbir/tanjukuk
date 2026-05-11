@@ -27,22 +27,23 @@ async function createDelivery(
   userId: string,
   offsetMinutes: number,
   channel: string,
-  scheduledFor: string
+  scheduledFor: string,
+  notificationId?: string
 ): Promise<string | null> {
   const supabase = await createClient()
-
-  const dedupeKey = `${eventId}-${userId}-${offsetMinutes}-${channel}`
 
   const { data, error } = await supabase
     .from('notification_deliveries')
     .insert({
-      scheduled_item_id: eventId,
-      recipient_user_id: userId,
+      notification_id: notificationId || null,
       channel,
-      offset_minutes: offsetMinutes,
-      scheduled_for: scheduledFor,
-      dedupe_key: dedupeKey,
       status: 'pending',
+      metadata: {
+        event_id: eventId,
+        user_id: userId,
+        offset_minutes: offsetMinutes,
+        scheduled_for: scheduledFor,
+      },
     })
     .select('id')
     .single()
@@ -59,7 +60,6 @@ async function createDelivery(
  * Create an in-app notification linked to a delivery
  */
 async function createInAppNotification(
-  deliveryId: string,
   userId: string,
   title: string,
   message: string,
@@ -72,16 +72,11 @@ async function createInAppNotification(
     .from('notifications')
     .insert({
       user_id: userId,
-      delivery_id: deliveryId,
       title,
       message,
       type: eventType,
       entity_id: eventId,
       entity_type: 'event',
-      channel: 'in_app',
-      metadata: {
-        event_type: eventType,
-      },
     })
     .select('id')
     .single()
@@ -123,22 +118,6 @@ export async function dispatchReminder(
     }
   }
 
-  // Create delivery record
-  const deliveryId = await createDelivery(
-    candidate.eventId,
-    candidate.assignedUserId,
-    policy.offsetMinutes,
-    policy.channel,
-    policy.scheduledFor
-  )
-
-  if (!deliveryId) {
-    return {
-      success: false,
-      error: 'Failed to create delivery',
-    }
-  }
-
   // Generate notification content
   const eventDate = new Date(candidate.scheduledAt)
   const timeUntilEvent = policy.offsetMinutes
@@ -163,7 +142,6 @@ export async function dispatchReminder(
   // Create in-app notification
   if (policy.channel === 'in_app') {
     const notificationId = await createInAppNotification(
-      deliveryId,
       candidate.assignedUserId,
       title,
       message,
@@ -178,7 +156,22 @@ export async function dispatchReminder(
       }
     }
 
-    // Update delivery status to sent
+    const deliveryId = await createDelivery(
+      candidate.eventId,
+      candidate.assignedUserId,
+      policy.offsetMinutes,
+      policy.channel,
+      policy.scheduledFor,
+      notificationId
+    )
+
+    if (!deliveryId) {
+      return {
+        success: false,
+        error: 'Failed to create delivery',
+      }
+    }
+
     const supabase = await createClient()
     await supabase
       .from('notification_deliveries')
@@ -194,6 +187,21 @@ export async function dispatchReminder(
 
   // Send push notification
   if (policy.channel === 'push') {
+    const deliveryId = await createDelivery(
+      candidate.eventId,
+      candidate.assignedUserId,
+      policy.offsetMinutes,
+      policy.channel,
+      policy.scheduledFor
+    )
+
+    if (!deliveryId) {
+      return {
+        success: false,
+        error: 'Failed to create delivery',
+      }
+    }
+
     const pushPayload: PushPayload = {
       title,
       body: message,
@@ -216,7 +224,6 @@ export async function dispatchReminder(
     const pushResult = await sendPushNotificationToUser(candidate.assignedUserId, pushPayload)
 
     if (pushResult.sent > 0) {
-      // Update delivery status to sent
       const supabase = await createClient()
       await supabase
         .from('notification_deliveries')
@@ -228,7 +235,6 @@ export async function dispatchReminder(
         deliveryId,
       }
     } else {
-      // Update delivery status to failed
       const supabase = await createClient()
       await supabase
         .from('notification_deliveries')
@@ -244,8 +250,8 @@ export async function dispatchReminder(
 
   // TODO: Add email, SMS dispatch here
   return {
-    success: true,
-    deliveryId,
+    success: false,
+    error: `${policy.channel} channel is not implemented`,
   }
 }
 

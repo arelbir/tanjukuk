@@ -25,6 +25,6 @@ CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
 
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Anyone can view events" ON events FOR SELECT USING (true);
-CREATE POLICY "Lawyers can create events" ON events FOR INSERT WITH CHECK (true);
-CREATE POLICY "Lawyers can update events" ON events FOR UPDATE WITH CHECK (true);
+CREATE POLICY "Authenticated users can view events" ON events FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can create events" ON events FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can update events" ON events FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');

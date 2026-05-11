@@ -28,7 +28,6 @@ export async function createNotification(params: CreateNotificationParams) {
       entity_id: params.entityId || null,
       entity_type: params.entityType || null,
       link_url: params.linkUrl || null,
-      channel: 'in_app',
     })
     .select()
     .single()
@@ -90,13 +89,7 @@ export async function notifyCaseStatusChange(caseData: {
 /**
  * @deprecated Use the reminder system instead (src/lib/reminders)
  */
-export async function notifyHearingReminder(_hearingData: {
-  id: string
-  case_id: string
-  case_code: string
-  hearing_date: string
-  lawyer_id: string
-}) {
+export async function notifyHearingReminder() {
   console.warn('notifyHearingReminder is deprecated. Use the reminder system instead.')
   return null
 }
@@ -104,14 +97,7 @@ export async function notifyHearingReminder(_hearingData: {
 /**
  * @deprecated Use the reminder system instead (src/lib/reminders)
  */
-export async function notifyDeadlineReminder(_deadlineData: {
-  id: string
-  case_id: string
-  case_code: string
-  deadline_date: string
-  description: string
-  lawyer_id: string
-}) {
+export async function notifyDeadlineReminder() {
   console.warn('notifyDeadlineReminder is deprecated. Use the reminder system instead.')
   return null
 }

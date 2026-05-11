@@ -28,8 +28,9 @@ import {
   buildLookupResolverMap,
   buildUserEmailResolverMap,
   caseImportDefinition,
-  createTemplateWorkbook,
   createWorkbookFromDefinition,
+  downloadExampleTemplate,
+  downloadTemplate,
   downloadWorkbook,
   executeResolvedImport,
 } from '@/lib/import-export'
@@ -40,7 +41,7 @@ export default function CasesPage() {
   const { lookups } = useMultipleLookups(['case_status', 'case_type'])
   const statusOptions = lookups['case_status'] || []
   const caseTypeOptions = lookups['case_type'] || []
-  
+
   const {
     cases,
     lawyers,
@@ -54,29 +55,32 @@ export default function CasesPage() {
 
   const lawyerFilterItems = [
     { id: 'all', label: 'Tüm Avukatlar' },
-    ...lawyers.map(l => ({ id: l.id, label: l.full_name }))
+    ...lawyers.map((lawyer) => ({ id: lawyer.id, label: lawyer.full_name })),
   ]
 
   const statusFilterItems = [
     { id: 'all', label: 'Tüm Durumlar' },
-    ...statusOptions
+    ...statusOptions,
   ]
 
   const caseTypeFilterItems = [
     { id: 'all', label: 'Tüm Dava Türleri' },
-    ...caseTypeOptions
+    ...caseTypeOptions,
   ]
 
   const handleDownloadTemplate = () => {
-    const workbook = createTemplateWorkbook(caseImportDefinition)
-    downloadWorkbook(workbook, caseImportDefinition.fileName)
+    downloadTemplate(caseImportDefinition)
+  }
+
+  const handleDownloadExampleTemplate = () => {
+    downloadExampleTemplate(caseImportDefinition, 'dosya-sablon-ornek.xlsx')
   }
 
   const handleExport = () => {
     const workbook = createWorkbookFromDefinition(
       caseImportDefinition,
       cases.map((item) => ({
-        lawyer_email: item.lawyer?.full_name || '',
+        lawyer_email: item.lawyer_id ? lawyers.find((lawyer) => lawyer.id === item.lawyer_id)?.email || '' : '',
         client_name: item.client?.name || '',
         opposing_party: item.opposing_party,
         client_role_label: item.client_role?.label || null,
@@ -95,8 +99,9 @@ export default function CasesPage() {
         currency: item.currency,
         description: item.description,
         notes: item.notes,
-      }))
+      })),
     )
+
     downloadWorkbook(workbook, `dosyalar-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
@@ -128,13 +133,13 @@ export default function CasesPage() {
         const fileTypeId = row.file_type_label ? fileTypeMap.get(row.file_type_label.trim().toLocaleLowerCase('tr-TR')) || null : null
         const clientRoleId = row.client_role_label ? clientRoleMap.get(row.client_role_label.trim().toLocaleLowerCase('tr-TR')) || null : null
 
-        if (!lawyerId) errors.push('lawyer_email eşleşmedi')
-        if (!clientId) errors.push('client_name eşleşmedi')
-        if (row.case_type_label && !caseTypeId) errors.push('case_type_label eşleşmedi')
-        if (row.status_label && !statusId) errors.push('status_label eşleşmedi')
-        if (row.court_type_label && !courtTypeId) errors.push('court_type_label eşleşmedi')
-        if (row.file_type_label && !fileTypeId) errors.push('file_type_label eşleşmedi')
-        if (row.client_role_label && !clientRoleId) errors.push('client_role_label eşleşmedi')
+        if (!lawyerId) errors.push('Avukat E-posta alanı sistemde kayıtlı bir avukat ile eşleşmedi.')
+        if (!clientId) errors.push('Müvekkil Adı alanı sistemde kayıtlı bir müvekkil ile eşleşmedi.')
+        if (row.case_type_label && !caseTypeId) errors.push('Dava Türü alanındaki değer sistemde bulunamadı.')
+        if (row.status_label && !statusId) errors.push('Durum alanındaki değer sistemde bulunamadı.')
+        if (row.court_type_label && !courtTypeId) errors.push('Mahkeme Türü alanındaki değer sistemde bulunamadı.')
+        if (row.file_type_label && !fileTypeId) errors.push('Dosya Türü alanındaki değer sistemde bulunamadı.')
+        if (row.client_role_label && !clientRoleId) errors.push('Müvekkil Rolü alanındaki değer sistemde bulunamadı.')
 
         if (errors.length > 0) {
           return { errors }
@@ -169,7 +174,7 @@ export default function CasesPage() {
           rows.map((item) => ({
             ...item,
             created_by: user?.id,
-          }))
+          })),
         ),
       errorFileName: 'dosya-import-hatalari.xlsx',
     })
@@ -186,17 +191,19 @@ export default function CasesPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold tracking-tight">Dosyalar</h1>
         <div className="flex items-center gap-2">
           <div className="flex">
             <ImportExportToolbar
               onDownloadTemplate={handleDownloadTemplate}
+              onDownloadExampleTemplate={handleDownloadExampleTemplate}
               onExport={handleExport}
               onImport={handleImport}
               templateLabel="Şablon İndir"
               importLabel="Şablon Yükle"
               exportLabel="Dosyaları Dışa Aktar"
+              helperText="Örnek şablonu inceleyerek zorunlu alanları, tarih formatını ve sistemde beklenen etiket değerlerini görebilirsiniz."
             />
             <Button variant="outline" onClick={() => router.push('/cases/new')} className="h-8 rounded-l-none border-l-0">
               <Plus className="h-4 w-4 mr-2" />
@@ -222,19 +229,19 @@ export default function CasesPage() {
             <UnifiedSelect
               value={filters.lawyerFilter || 'all'}
               onChange={(v) => updateFilters({ lawyerFilter: v || 'all' })}
-              items={lawyerFilterItems.map(i => ({ id: i.id, label: i.label || i.id }))}
+              items={lawyerFilterItems.map((item) => ({ id: item.id, label: item.label || item.id }))}
               placeholder="Seçiniz"
             />
             <UnifiedSelect
               value={filters.statusFilter || 'all'}
               onChange={(v) => updateFilters({ statusFilter: v || 'all' })}
-              items={statusFilterItems.map(i => ({ id: i.id, label: i.label || i.id }))}
+              items={statusFilterItems.map((item) => ({ id: item.id, label: item.label || item.id }))}
               placeholder="Seçiniz"
             />
             <UnifiedSelect
               value={filters.caseTypeFilter || 'all'}
               onChange={(v) => updateFilters({ caseTypeFilter: v || 'all' })}
-              items={caseTypeFilterItems.map(i => ({ id: i.id, label: i.label || i.id }))}
+              items={caseTypeFilterItems.map((item) => ({ id: item.id, label: item.label || item.id }))}
               placeholder="Seçiniz"
             />
             <div className="flex gap-2 sm:col-span-2 lg:col-span-2">
@@ -285,35 +292,35 @@ export default function CasesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              cases.map((c) => (
+              cases.map((item) => (
                 <TableRow
-                  key={c.id}
+                  key={item.id}
                   className={`cursor-pointer hover:bg-muted/50 border-l-4 ${
-                    c.lean_against ? LEAN_COLORS[c.lean_against]?.split(' ')[1] || 'border-transparent' : 'border-transparent'
+                    item.lean_against ? LEAN_COLORS[item.lean_against]?.split(' ')[1] || 'border-transparent' : 'border-transparent'
                   } hover:border-l-primary`}
-                  onClick={() => router.push(`/cases/${c.id}`)}
+                  onClick={() => router.push(`/cases/${item.id}`)}
                 >
-                  <TableCell className="font-medium">{c.case_code}</TableCell>
-                  <TableCell>{c.lawyer?.full_name}</TableCell>
-                  <TableCell>{c.client?.name}</TableCell>
-                  <TableCell>{c.opposing_party}</TableCell>
-                  <TableCell>{c.case_type?.label || '-'}</TableCell>
+                  <TableCell className="font-medium">{item.case_code}</TableCell>
+                  <TableCell>{item.lawyer?.full_name}</TableCell>
+                  <TableCell>{item.client?.name}</TableCell>
+                  <TableCell>{item.opposing_party}</TableCell>
+                  <TableCell>{item.case_type?.label || '-'}</TableCell>
                   <TableCell>
-                    <StatusBadge label={c.status?.label || '-'} />
+                    <StatusBadge label={item.status?.label || '-'} />
                   </TableCell>
                   <TableCell>
-                    {c.next_hearing_at ? new Date(c.next_hearing_at).toLocaleDateString('tr-TR') : '-'}
+                    {item.next_hearing_at ? new Date(item.next_hearing_at).toLocaleDateString('tr-TR') : '-'}
                   </TableCell>
                   <TableCell>
-                    <LeanBadge value={c.lean_against} />
+                    <LeanBadge value={item.lean_against} />
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
-        
-        <div className="flex items-center justify-between p-4 border-t">
+
+        <div className="flex items-center justify-between border-t p-4">
           <div className="text-sm text-muted-foreground">
             Toplam {totalCount} kayıttan {(filters.page - 1) * 50 + 1}-{Math.min(filters.page * 50, totalCount)} arası
           </div>

@@ -73,7 +73,7 @@ export default function ClientDetailPage() {
         type: editFormData.type,
         phone: editFormData.phone,
         email: editFormData.email,
-        tax_no: editFormData.tax_no,
+        tax_number: editFormData.tax_number,
         address: editFormData.address,
       })
       .eq('id', clientId)
@@ -133,7 +133,7 @@ export default function ClientDetailPage() {
           <CardContent className="space-y-2 text-sm">
             <p><span className="font-medium">Telefon:</span> {client.phone || '-'}</p>
             <p><span className="font-medium">E-posta:</span> {client.email || '-'}</p>
-            <p><span className="font-medium">Vergi No:</span> {client.tax_no || '-'}</p>
+            <p><span className="font-medium">Vergi No:</span> {client.tax_number || '-'}</p>
             <p><span className="font-medium">Adres:</span> {client.address || '-'}</p>
           </CardContent>
         </Card>
@@ -224,11 +224,11 @@ export default function ClientDetailPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="tax_no">Vergi No</Label>
+              <Label htmlFor="tax_number">Vergi No</Label>
               <Input
-                id="tax_no"
-                value={editFormData.tax_no || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, tax_no: e.target.value })}
+                id="tax_number"
+                value={editFormData.tax_number || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, tax_number: e.target.value })}
               />
             </div>
             <div className="grid gap-2">

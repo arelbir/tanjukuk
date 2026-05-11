@@ -17,9 +17,8 @@ import { cn } from '@/lib/utils'
 import { ImportExportToolbar } from '@/components/import-export-toolbar'
 import {
   caseImportDefinition,
-  createTemplateWorkbook,
-  downloadWorkbook,
-  parseWorkbook,
+  downloadExampleTemplate,
+  downloadTemplate,
 } from '@/lib/import-export'
 
 interface FormData {
@@ -63,14 +62,12 @@ export default function NewCasePage() {
   const courtTypes = lookups['court_type'] || []
   const fileTypes = lookups['file_type'] || []
   
-  // Cleanup duplicates from DB if any
   const entityTypeItems = Array.from(new Map((lookups['entity_type'] || []).map(item => [item.label, item])).values())
   const clientRoleItems = Array.from(new Map((lookups['client_role'] || []).map(item => [item.label, item])).values())
   
   const currencyItems = lookups['currency'] || []
   const cityItems = lookups['city'] || []
 
-  // Pre-select defaults when loaded
   const defaultStatus = statuses.length > 0 ? statuses[0].id : ''
 
   const [formData, setFormData] = useState<FormData>({
@@ -96,14 +93,12 @@ export default function NewCasePage() {
     notes: ''
   })
 
-  // Helper to ensure first load gets a default status if empty but lookups are loaded
   useEffect(() => {
     if (!formData.status_id && defaultStatus) {
       setFormData(prev => ({ ...prev, status_id: defaultStatus }))
     }
   }, [defaultStatus, formData.status_id])
 
-  // Load lawyers
   useEffect(() => {
     async function loadLawyers() {
       const { data } = await supabase
@@ -117,7 +112,6 @@ export default function NewCasePage() {
     void loadLawyers()
   }, [supabase])
 
-  // Load clients
   useEffect(() => {
     async function loadClients() {
       const { data } = await supabase
@@ -129,7 +123,6 @@ export default function NewCasePage() {
     void loadClients()
   }, [supabase])
 
-  // Unsaved changes guard
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
@@ -140,7 +133,6 @@ export default function NewCasePage() {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [isDirty])
-
 
   const update = (field: keyof FormData, value: string | undefined | null) => {
     setFormData(prev => ({ ...prev, [field]: value || '' }))
@@ -210,45 +202,20 @@ export default function NewCasePage() {
   }
 
   const handleDownloadTemplate = () => {
-    const workbook = createTemplateWorkbook(caseImportDefinition)
-    downloadWorkbook(workbook, caseImportDefinition.fileName)
+    downloadTemplate(caseImportDefinition)
   }
 
-  const handleImport = async (file: File) => {
-    const parsed = await parseWorkbook(file, caseImportDefinition)
+  const handleDownloadExampleTemplate = () => {
+    downloadExampleTemplate(caseImportDefinition, 'dosya-sablon-ornek.xlsx')
+  }
 
-    if (parsed.invalid.length > 0) {
-      toast.error(`${parsed.invalid.length} satır doğrulamadan geçemedi`)
-    }
-
-    if (parsed.valid.length === 0) {
-      return
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    const payload = parsed.valid.map((item) => ({
-      ...item,
-      created_by: user?.id,
-    }))
-
-    const { error } = await supabase.from('cases').insert(payload)
-
-    if (error) {
-      toast.error('Toplu import hatası: ' + error.message)
-      return
-    }
-
-    toast.success(`${parsed.valid.length} dosya içe aktarıldı`)
+  const handleImport = async () => {
+    toast.info('Toplu aktarım için Dosyalar ekranına yönlendiriliyorsunuz.')
     router.push('/cases')
   }
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-background">
-      
-      {/* Ciddi / Basit Üst Bar */}
       <div className="flex-none flex items-center justify-between border-b px-6 py-4 bg-card">
         <div className="flex items-center gap-4">
           <Link href="/cases">
@@ -264,9 +231,11 @@ export default function NewCasePage() {
         <div className="flex items-center gap-2">
           <ImportExportToolbar
             onDownloadTemplate={handleDownloadTemplate}
+            onDownloadExampleTemplate={handleDownloadExampleTemplate}
             onImport={handleImport}
-            importLabel="Şablon Yükle"
+            importLabel="Toplu Aktarıma Git"
             templateLabel="Şablon İndir"
+            helperText="Toplu dosya aktarımı artık Dosyalar ekranındaki gelişmiş akış üzerinden yapılır."
           />
           <div className="w-px h-6 bg-border mx-2" />
           <Button variant="outline" onClick={handleCancel} className="h-8">İptal</Button>
@@ -277,10 +246,7 @@ export default function NewCasePage() {
         </div>
       </div>
 
-      {/* 3 Kolonlu Ekranı Kaplayan Grid (Scroll yok) */}
       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-12 divide-y md:divide-y-0 md:divide-x overflow-y-auto">
-        
-        {/* KOLON 1: TARAFLAR */}
         <div className="lg:col-span-3 flex flex-col p-6 space-y-4">
           <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Taraflar</h2>
 
@@ -339,12 +305,9 @@ export default function NewCasePage() {
           </div>
         </div>
 
-        {/* KOLON 2: DAVA BİLGİLERİ */}
         <div className="lg:col-span-6 flex flex-col p-6 space-y-4 bg-card/50 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Dava Bilgileri</h2>
-            
-            {/* Quick Status Bar */}
             {statuses.length > 0 && (
                <div className="flex bg-background border rounded-lg p-1 shadow-sm">
                  {statuses.slice(0, MAX_QUICK_STATUSES).map((st) => (
@@ -388,122 +351,83 @@ export default function NewCasePage() {
                     { id: 'USD', label: 'USD' },
                     { id: 'EUR', label: 'EUR' }
                   ]}
-                  searchable
-                  className="w-24"
+                  placeholder="Para Birimi"
                 />
               </div>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <UnifiedSelect
+              label="Dava Türü"
+              value={formData.case_type_id}
+              onChange={(v) => update('case_type_id', v)}
+              items={caseTypes.map(i => ({ id: i.id, label: i.label }))}
+              searchable
+              placeholder="Seçiniz"
+            />
+            <UnifiedSelect
+              label="Dosya Türü"
+              value={formData.file_type_id}
+              onChange={(v) => update('file_type_id', v)}
+              items={fileTypes.map(i => ({ id: i.id, label: i.label }))}
+              searchable
+              placeholder="Seçiniz"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-6">
+            <UnifiedSelect
+              label="Şehir"
+              value={formData.court_city}
+              onChange={(v) => update('court_city', v)}
+              items={cityItems.map(i => ({ id: i.label, label: i.label }))}
+              searchable
+              placeholder="Seçiniz"
+            />
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">İlçe</Label>
+              <Input className="bg-white border-input" value={formData.court_district} onChange={(e) => update('court_district', e.target.value)} />
+            </div>
+            <UnifiedSelect
+              label="Mahkeme Türü"
+              value={formData.court_type_id}
+              onChange={(v) => update('court_type_id', v)}
+              items={courtTypes.map(i => ({ id: i.id, label: i.label }))}
+              searchable
+              placeholder="Seçiniz"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Mahkeme No</Label>
+              <Input className="bg-white border-input" value={formData.court_no} onChange={(e) => update('court_no', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Dosya Yılı</Label>
+              <Input className="bg-white border-input" value={formData.file_year} onChange={(e) => update('file_year', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Dosya No</Label>
+              <Input className="bg-white border-input" value={formData.file_no} onChange={(e) => update('file_no', e.target.value)} />
+            </div>
+          </div>
+        </div>
+
+        <div className="lg:col-span-3 flex flex-col p-6 space-y-4">
+          <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Ek Bilgiler</h2>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Açıklama</Label>
+            <Textarea className="min-h-[120px] bg-white border-input" value={formData.description} onChange={(e) => update('description', e.target.value)} />
           </div>
 
           <div className="space-y-2">
-             <Label className="text-sm font-medium">Dava Türü <span className="text-destructive">*</span></Label>
-             <UnifiedSelect
-                value={formData.case_type_id}
-                onChange={(v) => update('case_type_id', v || '')}
-                items={caseTypes.map(c => ({ id: c.id, label: c.label || c.id }))}
-                placeholder="Dava türü seçiniz"
-                searchable
-              />
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 pt-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Açıklama / Konu Özeti</Label>
-              <Textarea 
-                className="h-28 resize-none bg-white w-full px-3 py-2 border-input" 
-                placeholder="Dava detayları..." 
-                value={formData.description} 
-                onChange={(e) => update('description', e.target.value)} 
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Dahili Notlar</Label>
-              <Textarea 
-                className="h-28 resize-none bg-white w-full px-3 py-2 border-input" 
-                placeholder="Ofis içi özel notlarınız..." 
-                value={formData.notes} 
-                onChange={(e) => update('notes', e.target.value)} 
-              />
-            </div>
-          </div>
-
-        </div>
-
-        {/* KOLON 3: MAHKEME BİLGİLERİ */}
-        <div className="lg:col-span-3 flex flex-col p-6 space-y-4">
-          <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Mahkeme Bilgileri</h2>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">İl</Label>
-                <UnifiedSelect
-                  value={formData.court_city}
-                  onChange={(v) => update('court_city', v || '')}
-                  items={cityItems.map(c => ({ id: c.label, label: c.label }))}
-                  placeholder="Seçiniz"
-                  searchable
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">İlçe</Label>
-                <Input
-                  className="w-full bg-white border-input"
-                  placeholder="İlçe adı"
-                  value={formData.court_district}
-                  onChange={(e) => update('court_district', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-               <Label className="text-sm font-medium">Mahkeme Türü</Label>
-               <UnifiedSelect
-                  value={formData.court_type_id}
-                  onChange={(v) => update('court_type_id', v || '')}
-                  items={courtTypes.map(c => ({ id: c.id, label: c.label || c.id }))}
-                  placeholder="Mahkeme türü seçiniz"
-                  searchable
-                />
-            </div>
-
-            <div className="space-y-2">
-               <Label className="text-sm font-medium">Dosya Konumu / Yeri</Label>
-               <UnifiedSelect
-                  value={formData.file_type_id}
-                  onChange={(v) => update('file_type_id', v || '')}
-                  items={fileTypes.map(f => ({ id: f.id, label: f.label || f.id }))}
-                  placeholder="Dosya konumu seçiniz"
-                  searchable
-                />
-            </div>
-
-            <div className="p-4 border rounded-lg bg-muted/10 space-y-4 mt-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Yıl</Label>
-                  <Input type="number" className="w-full bg-white border-input" placeholder="202X" value={formData.file_year} onChange={(e) => update('file_year', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Esas Numarası</Label>
-                  <Input className="w-full bg-white border-input" placeholder="Esas / Dosya No" value={formData.file_no} onChange={(e) => update('file_no', e.target.value)} />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Karar / Sıra Numarası</Label>
-                <Input 
-                  className="w-full bg-white border-input"
-                  placeholder="Mahkeme karar numarası" 
-                  value={formData.court_no} 
-                  onChange={(e) => update('court_no', e.target.value)} 
-                />
-              </div>
-            </div>
+            <Label className="text-sm font-medium">Notlar</Label>
+            <Textarea className="min-h-[180px] bg-white border-input" value={formData.notes} onChange={(e) => update('notes', e.target.value)} />
           </div>
         </div>
-
       </div>
     </div>
   )

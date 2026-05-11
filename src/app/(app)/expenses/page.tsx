@@ -17,7 +17,14 @@ import { Plus, Search } from 'lucide-react'
 import { PAYMENT_METHOD_MAPPING, getFieldLabel } from '@/types/mappings'
 import { useAuth } from '@/hooks/useAuth'
 import { ImportExportToolbar } from '@/components/import-export-toolbar'
-import { downloadTemplate, executeResolvedImport, expenseImportDefinition, exportRows, buildLookupResolverMap } from '@/lib/import-export'
+import {
+  buildLookupResolverMap,
+  downloadExampleTemplate,
+  downloadTemplate,
+  executeResolvedImport,
+  expenseImportDefinition,
+  exportRows,
+} from '@/lib/import-export'
 
 interface ExpenseRelation {
   label: string
@@ -100,7 +107,7 @@ export default function ExpensesPage() {
         .order('record_date', { ascending: false })
 
       if (search) {
-        query = query.or(`description.ilike.%${search}%,document_ref.ilike.%${search}%`)
+        query = query.or(`description.ilike.%${search}%`)
       }
 
       if (categoryFilter !== 'all') {
@@ -223,6 +230,10 @@ export default function ExpensesPage() {
     downloadTemplate(expenseImportDefinition)
   }
 
+  const handleDownloadExampleTemplate = () => {
+    downloadExampleTemplate(expenseImportDefinition, 'gider-sablon-ornek.xlsx')
+  }
+
   const handleExport = () => {
     exportRows(
       expenseImportDefinition,
@@ -264,15 +275,15 @@ export default function ExpensesPage() {
         const categoryId = categoryMap.get(row.category_label.trim().toLocaleLowerCase('tr-TR')) || null
         const paymentMethod = paymentMethodMap.get(row.payment_method.trim().toLocaleLowerCase('tr-TR')) || null
 
-        if (!categoryId) errors.push('category_label eşleşmedi')
-        if (!paymentMethod) errors.push('payment_method geçersiz')
+        if (!categoryId) errors.push('Kategori alanındaki değer sistemde bulunamadı.')
+        if (!paymentMethod) errors.push('Ödeme Yöntemi alanı geçersiz. Lütfen Nakit, Havale veya Kart değerlerinden birini kullanın.')
 
         let subCategoryId: string | null = null
         if (row.sub_category_label) {
           const catKey = row.category_label.trim().toLocaleLowerCase('tr-TR').replace(/[^a-zçğıöşü]/g, '')
           const subCategoryMap = await buildLookupResolverMap(supabase, `expense_sub_${catKey}`)
           subCategoryId = subCategoryMap.get(row.sub_category_label.trim().toLocaleLowerCase('tr-TR')) || null
-          if (!subCategoryId) errors.push('sub_category_label eşleşmedi')
+          if (!subCategoryId) errors.push('Alt Kategori alanındaki değer seçilen kategori altında bulunamadı.')
         }
 
         if (errors.length > 0) return { errors }
@@ -317,11 +328,13 @@ export default function ExpensesPage() {
           <div className="flex">
             <ImportExportToolbar
               onDownloadTemplate={handleDownloadTemplate}
+              onDownloadExampleTemplate={handleDownloadExampleTemplate}
               onExport={handleExport}
               onImport={handleImport}
               templateLabel="Şablon İndir"
               importLabel="Şablon Yükle"
               exportLabel="Giderleri Dışa Aktar"
+              helperText="Örnek şablonda geçerli gider türü, ödeme yöntemi ve tarih formatı örneklerini görebilirsiniz."
             />
             <Button variant="outline" onClick={() => drawer.openForCreate()} className="h-8 rounded-l-none border-l-0">
               <Plus className="h-4 w-4 mr-2" /> Yeni Gider
@@ -446,7 +459,7 @@ export default function ExpensesPage() {
                 { id: 'all', label: 'Tümü' },
                 { id: 'cash', label: 'Nakit' },
                 { id: 'bank', label: 'Banka' },
-                { id: 'credit_card', label: 'Kredi Kartı' }
+                { id: 'credit_card', label: 'Kredi Kartı' },
               ]}
               placeholder="Seçiniz"
             />
@@ -479,7 +492,7 @@ export default function ExpensesPage() {
               <TableHead>Kategori</TableHead>
               <TableHead>Alt Kategori</TableHead>
               <TableHead className="text-right">Tutar</TableHead>
-              <TableHead>Ödeme</TableHead>
+              <TableHead>Ödeme Yöntemi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -491,19 +504,11 @@ export default function ExpensesPage() {
               expenses.map((expense) => (
                 <TableRow key={expense.id}>
                   <TableCell>{new Date(expense.record_date).toLocaleDateString('tr-TR')}</TableCell>
-                  <TableCell>
-                    <Badge className={expense.expense_type === 'kurum' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}>
-                      {expense.expense_type === 'kurum' ? 'Kurum' : 'Kişisel'}
-                    </Badge>
-                  </TableCell>
+                  <TableCell><Badge variant="outline">{expense.expense_type === 'kurum' ? 'Kurum' : 'Kişisel'}</Badge></TableCell>
                   <TableCell>{expense.category?.label || '-'}</TableCell>
                   <TableCell>{expense.sub_category?.label || '-'}</TableCell>
                   <TableCell className="text-right font-medium">{expense.amount.toLocaleString('tr-TR')} {expense.currency}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {getFieldLabel(PAYMENT_METHOD_MAPPING, expense.payment_method || '')}
-                    </Badge>
-                  </TableCell>
+                  <TableCell>{expense.payment_method ? getFieldLabel(PAYMENT_METHOD_MAPPING, expense.payment_method) : '-'}</TableCell>
                 </TableRow>
               ))
             )}
