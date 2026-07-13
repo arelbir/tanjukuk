@@ -2,94 +2,79 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { AlertCircle, Scale } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { toast } from 'sonner'
-import { Scale } from 'lucide-react'
+
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
-  const supabase = createClient()
+  const [error, setError] = useState<string | null>(null)
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
     setLoading(true)
+    setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-    if (error) {
-      toast.error('Giriş başarısız: ' + error.message)
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        setError(payload?.error || 'E-posta veya şifre hatalı. Bilgilerinizi kontrol edip tekrar deneyin.')
+        return
+      }
+
+      router.replace('/home')
+      router.refresh()
+    } finally {
       setLoading(false)
-      return
     }
-
-    toast.success('Giriş başarılı!')
-    router.push('/dashboard')
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,var(--primary)_15%,transparent_50%),radial-gradient(ellipse_at_bottom_left,var(--primary)_10%,transparent_50%)] opacity-[0.03]" />
-      
-      <div className="absolute inset-0 -z-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiA0OGMyLjIgMCA0LTIuMiA0LTRzLTIuMi00IDQtNCA0IDIuMiA0IDQtMi4yIDQtNHMtMi4yLTQtNC00LTQgMi4yLTQgNC0yLjIgNC00IDR6IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAiIHN0cm9rZS1vcGFjaXR5PSIwLjA1Ii8+PC9nPjwvc3ZnPg==')] opacity-[0.3]" />
-
-      <div className="w-full max-w-md px-6">
-        <div className="mb-10 text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-            <Scale className="h-8 w-8 text-primary" />
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+      <Card className="w-full max-w-sm p-5 shadow-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <span className="flex size-11 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <Scale className="size-5" />
+          </span>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Hukuk Büro</h1>
+            <p className="text-sm text-muted-foreground">Güvenli giriş</p>
           </div>
-          <h1 className="font-display text-3xl text-foreground">Hukuk Bürosu</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Yönetim Sistemi</p>
         </div>
 
-        <div className="rounded-2xl border border-border/50 bg-card/80 backdrop-blur-xl p-8 shadow-2xl">
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">E-posta</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="avukat@hukukburo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-12 rounded-xl border-border/50 bg-background/50 transition-all focus:border-primary focus:ring-primary/20"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">Şifre</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-12 rounded-xl border-border/50 bg-background/50 transition-all focus:border-primary focus:ring-primary/20"
-                required
-              />
-            </div>
-            <Button 
-              type="submit" 
-              className="h-12 w-full rounded-xl font-medium transition-all hover:scale-[1.02]" 
-              disabled={loading}
-            >
-              {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
-            </Button>
-          </form>
-        </div>
+        {error ? (
+          <div className="mb-4 flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : null}
 
-        <p className="mt-8 text-center text-xs text-muted-foreground">
-          Davet bağlantısıyla geldiyseniz bağlantı sizi onboarding ekranına yönlendirecektir.
-        </p>
-      </div>
-    </div>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <Label htmlFor="email">E-posta</Label>
+            <Input id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Şifre</Label>
+            <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Giriş yapılıyor...' : 'Giriş yap'}
+          </Button>
+        </form>
+      </Card>
+    </main>
   )
 }

@@ -1,14 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Serif_Display, Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
-import { QueryProvider } from "@/lib/queries/provider";
-
-const dmSerif = DM_Serif_Display({
-  variable: "--font-display",
-  weight: "400",
-  subsets: ["latin"],
-});
+import { QueryProvider } from "@/lib/queries";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -16,18 +10,18 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Hukuk Bürosu Yönetim Sistemi",
-  description: "Hukuk bürosu dava ve ofis yönetim sistemi",
+  title: "Hukuk Büro",
+  description: "Mobil öncelikli hukuk bürosu operasyon yönetimi",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Hukuk Bürosu",
+    title: "Hukuk Büro",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#3b82f6",
+  themeColor: "#1E3A8A",
 };
 
 export default function RootLayout({
@@ -38,7 +32,7 @@ export default function RootLayout({
   return (
     <html
       lang="tr"
-      className={`${dmSerif.variable} ${jakarta.variable} h-full antialiased`}
+      className={`${jakarta.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
         <QueryProvider>

@@ -2,70 +2,67 @@ import { NextRequest, NextResponse } from 'next/server'
 import { findReminderCandidates } from '@/lib/reminders/candidates'
 import { batchDispatchReminders } from '@/lib/reminders/dispatch'
 
-// Secret key to protect the endpoint
 const CRON_SECRET = process.env.CRON_SECRET
 
-export async function POST(request: NextRequest) {
-  // Verify secret key
+function authorize(request: NextRequest) {
   if (!CRON_SECRET) {
-    return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 500 })
+    return NextResponse.json({ error: 'CRON_SECRET yapılandırılmamış' }, { status: 500 })
   }
 
   const authHeader = request.headers.get('authorization')
-  if (!authHeader || authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const cronHeader = request.headers.get('x-cron-secret')
+  const valid = authHeader === `Bearer ${CRON_SECRET}` || cronHeader === CRON_SECRET
+
+  if (!valid) {
+    return NextResponse.json({ error: 'Yetkisiz istek' }, { status: 401 })
   }
 
-  // Check for dry-run mode
+  return null
+}
+
+export async function POST(request: NextRequest) {
+  const unauthorized = authorize(request)
+  if (unauthorized) return unauthorized
+
   const dryRun = request.nextUrl.searchParams.get('dryRun') === 'true'
 
   try {
-    // Find reminder candidates
-    const candidates = await findReminderCandidates(
-      15, // lookback 15 minutes
-      1440 * 7 // lookforward 7 days
-    )
+    const candidates = await findReminderCandidates({
+      lookbackMinutes: 60,
+      lookforwardMinutes: 1440 * 7,
+    })
 
     if (dryRun) {
       return NextResponse.json({
         dryRun: true,
         scanned_count: candidates.length,
-        candidates: candidates.map((c) => ({
-          eventId: c.eventId,
-          eventTitle: c.eventTitle,
-          eventType: c.eventType,
-          scheduledAt: c.scheduledAt,
-          policiesCount: c.policies.length,
-        })),
+        candidates,
       })
     }
 
-    // Dispatch reminders
     const result = await batchDispatchReminders(candidates)
 
     return NextResponse.json({
       success: true,
-      scanned_count: candidates.length,
-      candidate_count: candidates.reduce((sum, c) => sum + c.policies.length, 0),
+      scanned_count: result.scanned,
       created_notification_count: result.created,
       duplicate_count: result.duplicates,
       failed_count: result.failed,
       errors: result.errors,
     })
   } catch (error) {
-    console.error('Error in reminder cron:', error)
+    console.error('Reminder cron error:', error)
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Hatırlatma üretimi çalıştırılamadı',
+        message: error instanceof Error ? error.message : 'Bilinmeyen hata',
       },
       { status: 500 }
     )
   }
 }
 
-// Also support GET for testing
 export async function GET(request: NextRequest) {
   return POST(request)
 }

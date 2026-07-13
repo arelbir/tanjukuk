@@ -40,5 +40,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Local AI/editor caches
+.lukai/
+.codex/
+.claude/
+.windsurf/
+
 .vercel
 .env*.local

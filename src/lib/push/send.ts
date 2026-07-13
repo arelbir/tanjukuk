@@ -1,5 +1,5 @@
 import webpush from 'web-push'
-import { createClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 // Configure VAPID lazily so the app can boot without push envs
 const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
@@ -69,7 +69,7 @@ export async function sendPushNotificationToUser(
   userId: string,
   payload: PushPayload
 ): Promise<{ sent: number; failed: number; expired: number }> {
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
 
   const { data: subscriptions, error } = await supabase
     .from('push_subscriptions')

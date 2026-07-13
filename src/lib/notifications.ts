@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export interface CreateNotificationParams {
   userId: string
@@ -16,7 +16,7 @@ export interface CreateNotificationParams {
  * For scheduled reminders, use the reminder system instead.
  */
 export async function createNotification(params: CreateNotificationParams) {
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
 
   const { data, error } = await supabase
     .from('notifications')

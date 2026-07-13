@@ -1,14 +1,20 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { Database } from '@/types/database.generated'
 
 const protectedRoutes = [
-  '/dashboard',
-  '/cases',
+  '/admin',
+  '/home',
   '/calendar',
   '/clients',
-  '/income',
-  '/expenses',
-  '/admin',
+  '/files',
+  '/documents',
+  '/finance',
+  '/notifications',
+  '/more',
+  '/cases',
+  '/enforcements',
+  '/dashboard',
 ]
 
 const adminRoutes = ['/admin']
@@ -17,9 +23,9 @@ const adminApiRoutes = ['/api/admin', '/api/seed']
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  const supabase = createServerClient<Database>(
+    (process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL)!,
+    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!,
     {
       cookies: {
         get(name: string) {
@@ -34,7 +40,7 @@ export async function proxy(request: NextRequest) {
           response.cookies.set(name, '', options)
         },
       },
-    }
+    },
   )
 
   const {
@@ -50,13 +56,13 @@ export async function proxy(request: NextRequest) {
 
     if (adminRoutes.some((route) => path.startsWith(route))) {
       const { data: userData } = await supabase
-        .from('users')
-        .select('role')
+        .from('profiles')
+        .select('role, is_active')
         .eq('id', user.id)
         .single()
 
-      if (userData?.role !== 'admin') {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+      if (userData?.role !== 'admin' || !userData.is_active) {
+        return NextResponse.redirect(new URL('/home', request.url))
       }
     }
   }
@@ -67,18 +73,18 @@ export async function proxy(request: NextRequest) {
     }
 
     const { data: userData } = await supabase
-      .from('users')
-      .select('role')
+      .from('profiles')
+      .select('role, is_active')
       .eq('id', user.id)
       .single()
 
-    if (userData?.role !== 'admin') {
+    if (userData?.role !== 'admin' || !userData.is_active) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
   }
 
   if (path === '/login' && user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL('/home', request.url))
   }
 
   return response
@@ -86,13 +92,18 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/cases/:path*',
+    '/admin/:path*',
+    '/home/:path*',
     '/calendar/:path*',
     '/clients/:path*',
-    '/income/:path*',
-    '/expenses/:path*',
-    '/admin/:path*',
+    '/files/:path*',
+    '/documents/:path*',
+    '/finance/:path*',
+    '/notifications/:path*',
+    '/more/:path*',
+    '/cases/:path*',
+    '/enforcements/:path*',
+    '/dashboard/:path*',
     '/api/admin/:path*',
     '/api/seed',
     '/login',

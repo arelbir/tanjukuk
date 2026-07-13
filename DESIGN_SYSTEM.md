@@ -1,360 +1,204 @@
-# Hukuk Bürosu Yönetim Sistemi - Design System
+# Design System — Hukuk Büro Mobil Yönetim
 
-Bu doküman uygulama genelinde kullanılacak tutarlı UX/UI standartlarını belirler.
+Kaynak yaklaşım: `ui-ux-pro-max-skill` çıktısı + mobil-first shadcn uygulama ihtiyaçları.
 
----
+## Ürün tipi
 
-## 1. Form Elementleri
+Hukuk bürosu iç operasyon uygulaması:
 
-### 1.1 Input Yüksekliği
-Tüm input türleri aynı yüksekliğe sahip olmalıdır:
+- Müvekkil yönetimi
+- Dava/icra dosyası yönetimi
+- Ajanda/duruşma/görev takibi
+- Finans/alacak/gider yönetimi
+- Belge yönetimi
+- Bildirim ve audit
 
-| Element | Yükseklik | Class |
-|---------|-----------|-------|
-| Text Input | 32px | `h-8` |
-| Number Input | 32px | `h-8` |
-| Date Input | 32px | `h-8` |
-| Select/Dropdown | 32px | `h-8` (32px inline) |
-| Textarea | Flexible | `min-h-28` |
+Bu bir landing page değil; bu yüzden skill’in “Trust & Authority” önerisini uygulama UI diline uyarlıyoruz.
 
-### 1.2 Input Arka Plan Rengi
-Tüm input elementleri beyaz arka plan kullanır:
-- **Varsayılan**: `bg-white`
-- **Border**: `border-input` (`#e2e8f0`)
-- **Focus**: `border-primary` (`#2563eb`)
+## Stil yönü
 
-### 1.3 Input Padding
-- **Horizontal**: `px-2.5` (10px)
-- **Vertical**: `py-1` (4px)
-- **Textarea**: `px-3 py-2`
+**Trust & Authority / Enterprise Mobile App**
 
-### 1.4 Border Radius
-- **Tüm inputlar**: `rounded-lg` (8px)
-- **Segmented buton grupları**: `rounded-md` (6px)
+Karakter:
 
----
+- Güvenilir
+- Sade
+- Hızlı
+- Resmi ama hantal değil
+- Mobil saha kullanımına uygun
 
-## 2. Butonlar
+Kaçınılacaklar:
 
-### 2.1 Buton Yüksekliği
-Tüm butonlar aynı yükseklikte olmalıdır:
+- AI purple/pink gradient
+- Cam/glassmorphism
+- Aşırı gölge
+- Emojiler
+- Dekoratif hero alanları
+- Masaüstü-first tablo UI
+- Rastgele renk kullanımı
 
-| Buton Tipi | Yükseklik | Class |
-|------------|-----------|-------|
-| Standard Button | 32px | `h-8` |
-| Icon Button | 32px | `h-8 w-8` |
-| Segmented Button | 32px | `h-8` |
+## Renk tokenları
 
-### 2.2 Buton Variants
+Skill önerisi:
 
-#### Primary (Kaydet, Onayla)
-```tsx
-<Button className="h-8 px-4">Kaydet</Button>
-```
-- **Bg**: `bg-primary`
-- **Text**: `text-primary-foreground` (beyaz)
-- **Icon**: Sol tarafta, `mr-2 h-4 w-4`
+- Primary: `#1E3A8A`
+- Secondary: `#1E40AF`
+- Accent/CTA: `#B45309`
+- Background: `#F8FAFC`
+- Foreground: `#0F172A`
+- Muted: `#E9EEF5`
+- Border: `#CBD5E1`
+- Destructive: `#DC2626`
+- Ring: `#1E3A8A`
 
-#### Outline (İptal, İkincil aksiyonlar)
-```tsx
-<Button variant="outline" className="h-8">İptal</Button>
-```
-- **Bg**: `bg-white`
-- **Border**: `border-input`
-- **Hover**: `hover:bg-muted`
+Uygulama token eşlemesi:
 
-#### Ghost (İkincil/tertiary)
-```tsx
-<Button variant="ghost" className="h-8">Vazgeç</Button>
-```
-- **Bg**: `bg-transparent`
-- **Hover**: `hover:bg-muted`
+- `--background`: `#F8FAFC`
+- `--foreground`: `#0F172A`
+- `--card`: `#FFFFFF`
+- `--primary`: `#1E3A8A`
+- `--primary-foreground`: `#FFFFFF`
+- `--secondary`: `#E9EEF5`
+- `--secondary-foreground`: `#0F172A`
+- `--accent`: `#FEF3C7`
+- `--accent-foreground`: `#92400E`
+- `--muted`: `#E9EEF5`
+- `--muted-foreground`: `#475569`
+- `--border`: `#CBD5E1`
+- `--destructive`: `#DC2626`
+- `--ring`: `#1E3A8A`
 
-### 2.3 Segmented Button Group
-Birden fazla ilişkili buton yan yana gösterildiğinde:
+## Tipografi
 
-```tsx
-<div className="flex">
-  <Button variant="outline" className="h-8 rounded-l-md rounded-r-none border-r-0">
-    <Icon className="h-4 w-4 mr-2" />
-    Label 1
-  </Button>
-  <Button variant="outline" className="h-8 rounded-none border-r-0">
-    <Icon className="h-4 w-4 mr-2" />
-    Label 2
-  </Button>
-  <Button variant="outline" className="h-8 rounded-r-md rounded-l-none">
-    <Icon className="h-4 w-4 mr-2" />
-    Label 3
-  </Button>
-</div>
-```
+Skill önerisi EB Garamond + Lato. Ancak mobil operasyon uygulamasında okunabilirlik ve yoğun veri öncelikli olduğundan:
 
-### 2.4 Buton Grupları Ayırıcı
-Farklı aksiyon grupları arasında dikey çizgi:
-```tsx
-<div className="w-px h-6 bg-border mx-2" />
-```
+- Uygulama body: tek sans font
+- Başlıklar: aynı sans font, 600–700 ağırlık
+- Uzun içerik ve belgelerde ileride serif opsiyonel kullanılabilir
 
----
+Mobil tipografi:
 
-## 3. Select/Dropdown
+- Page title: 22–24px / 600
+- Section title: 16–18px / 600
+- Card title: 15–16px / 600
+- Body: 14–15px / 400–500
+- Meta: 12–13px / 400
 
-### 3.1 UnifiedSelect Stilleri
-```tsx
-<UnifiedSelect
-  value={value}
-  onChange={onChange}
-  items={items}
-  placeholder="Seçiniz"
-  className="w-24" // veya w-full
-/>
-```
+## Mobil layout sistemi
 
-#### Inline Styles (react-select)
-- **Control height**: `32px`
-- **Border radius**: `0.5rem` (8px)
-- **Background**: `white`
-- **Border color (default)**: `#e2e8f0`
-- **Border color (focus)**: `#2563eb`
+### Safe layout
 
-### 3.2 Select ile Input Hizalama
-Input + Select yan yana olduğunda:
-```tsx
-<div className="flex gap-2">
-  <Input className="flex-1 bg-white" />
-  <UnifiedSelect className="w-24" />
-</div>
-```
+- Sayfa padding: 16px
+- Kart padding: 14–16px
+- Liste item minimum yüksekliği: 64px
+- Dokunma hedefi: minimum 44px
+- Sticky bottom action alanı: 72–88px
 
----
+### Shell
 
-## 4. Radio/Seçim Butonları
+Mobil ana navigasyon:
 
-### 4.1 RadioGroup (Segmented Control)
-```tsx
-<RadioGroup
-  items={items}
-  value={value}
-  onChange={onChange}
-/>
-```
+1. Ana Sayfa
+2. Dosyalar
+3. Ajanda
+4. Finans
+5. Daha Fazla
 
-#### Stil (filled - Quick Status Bar ile aynı)
-- **Height**: `h-8`
-- **Padding**: `px-3 py-2`
-- **Font size**: `text-xs`
-- **Border radius**: `rounded`
-- **Selected**: `bg-primary text-primary-foreground border-primary`
-- **Unselected**: `bg-white text-muted-foreground border-input`
-- **Hover (unselected)**: `hover:bg-muted`
+Desktop:
 
----
+- Sidebar kullanılabilir ama mobil akış ana kaynak kabul edilir.
 
-## 5. Form Layout
+## Ekran bileşen standartları
 
-### 5.1 Label Stilleri
-```tsx
-<Label className="text-sm font-medium">
-  Label Adı {required && <span className="text-destructive">*</span>}
-</Label>
-```
+### Page header
 
-#### Label + Input Aralığı
-```tsx
-<div className="space-y-2">
-  <Label>...</Label>
-  <Input />
-</div>
-```
+- Büyük hero yok.
+- Başlık + kısa açıklama + gerektiğinde tek primary aksiyon.
+- Mobilde aksiyon sticky bottom’a taşınabilir.
 
-### 5.2 Grid Yapısı
-İki sütunlu form elemanları:
-```tsx
-<div className="grid grid-cols-2 gap-3">
-  <div className="space-y-2">...</div>
-  <div className="space-y-2">...</div>
-</div>
-```
+### List item
 
-### 5.3 Placeholder Standartları
-Tüm select/input'larda tutarlı placeholder:
-- **Select**: `"Seçiniz"`
-- **Input**: Alan içeriğine göre (örn: `"İlçe adı"`, `"Örn: X Sigorta A.Ş."`)
+Mobilde tablo yerine kart/liste item.
 
----
+Standart yapı:
 
-## 6. Üst Bar (Header) Standartları
+- Sol: ikon veya durum çizgisi
+- Orta: başlık, meta, ikinci satır
+- Sağ: durum badge veya chevron
+- Alt: isteğe bağlı hızlı aksiyonlar
 
-### 6.1 Yapı
-```tsx
-<div className="flex-none flex items-center justify-between border-b px-6 py-4 bg-card">
-  {/* Sol: Geri butonu + Başlık */}
-  <div className="flex items-center gap-4">
-    <Button variant="outline" size="icon" className="h-8 w-8">
-      <ArrowLeft className="h-4 w-4" />
-    </Button>
-    <h1 className="text-xl font-semibold tracking-tight">Sayfa Başlığı</h1>
-  </div>
-  
-  {/* Sağ: Aksiyon butonları */}
-  <div className="flex items-center gap-2">
-    {/* Butonlar... */}
-  </div>
-</div>
-```
+### Filter
 
-### 6.2 Buton Sıralaması
-1. İkincil aksiyonlar (segmented group)
-2. Ayırıcı çizgi (`w-px h-6 bg-border`)
-3. İptal (outline)
-4. Kaydet (primary)
+- Mobilde filter sheet.
+- Desktop’ta yatay filter bar.
+- Arama her zaman ilk kontrol.
 
----
+### Form
 
-## 7. Renk Paleti
+- Mobilde full-height sheet.
+- Sticky footer: İptal + Kaydet.
+- Validation alan altında.
+- Çok adımlı formlar yalnız belge yükleme gibi gerekli yerlerde.
 
-### 7.1 Temel Renkler
-| Kullanım | Renk | Tailwind |
-|----------|------|----------|
-| Primary | Mavi | `bg-primary` / `#2563eb` |
-| Background | Beyaz | `bg-white` |
-| Border | Gri-200 | `border-input` / `#e2e8f0` |
-| Text | Slate-900 | `text-foreground` / `#0f172a` |
-| Muted Text | Slate-500 | `text-muted-foreground` / `#64748b` |
-| Destructive | Kırmızı | `text-destructive` / `#ef4444` |
+### Detail
 
-### 7.2 Durum Renkleri
-| Durum | Kullanım |
-|-------|----------|
-| Success | Yeşil - Onay, başarılı işlem |
-| Warning | Sarı - Uyarı, dikkat gerektiren |
-| Error | Kırmızı - Hata, silme işlemi |
-| Info | Mavi - Bilgi, notlar |
+Detay ekranı sırası:
 
----
+1. Özet kartı
+2. Kritik uyarılar
+3. Segment/bölüm navigasyonu
+4. İlişkili kayıt listeleri
+5. Audit/geçmiş en altta
 
-## 8. Tipografi
+## shadcn component kullanımı
 
-### 8.1 Font Boyutları
-| Element | Boyut | Class |
-|---------|-------|-------|
-| Page Title | 20px | `text-xl` |
-| Section Title | 12px uppercase | `text-sm uppercase` |
-| Label | 14px | `text-sm` |
-| Input Text | 14px | `text-sm` |
-| Button Text | 12px | `text-xs` |
-| Helper Text | 12px | `text-xs` |
+Kullanılacak primitives:
 
-### 8.2 Font Ağırlıkları
-| Kullanım | Ağırlık | Class |
-|----------|---------|-------|
-| Page Title | 600 | `font-semibold` |
-| Section Title | 600 | `font-semibold` |
-| Label | 500 | `font-medium` |
-| Button | 500 | `font-medium` |
-| Normal Text | 400 | `font-normal` |
+- Button
+- Card
+- Badge
+- Input
+- Textarea
+- Select/Combobox
+- Sheet/Drawer
+- Dialog
+- Tabs veya segmented control
+- Command
+- Dropdown Menu
+- Alert
+- Skeleton
+- Toast
 
----
+Kural:
 
-## 9. Boşluk ve Padding Standartları
+- Custom component yazılabilir ama primitive davranışları shadcn üzerine kurulmalı.
+- Component API’leri küçük tutulmalı.
+- Her component mobile state düşünülerek yazılmalı.
 
-### 9.1 Form Elementleri Arası
-- **Input grupları arası**: `space-y-4` (16px)
-- **Label + Input arası**: `space-y-2` (8px)
-- **Grid gap**: `gap-3` (12px) veya `gap-6` (24px)
+## Anti-slop checklist
 
-### 9.2 Sayfa Padding
-- **Üst bar**: `px-6 py-4`
-- **Form alanları**: `p-6`
-- **Card içi**: `p-4`
+Her ekran için kontrol:
 
----
+- [ ] 375px genişlikte yatay scroll yok.
+- [ ] En önemli aksiyon tek ve net.
+- [ ] Mobilde tablo yok.
+- [ ] Boş/loading/error durumu var.
+- [ ] Renkler tokenlardan geliyor.
+- [ ] En fazla bir primary CTA var.
+- [ ] Hover kadar focus state de var.
+- [ ] Gereksiz ikon yok.
+- [ ] Metinler gerçek kullanıcı diliyle yazıldı.
+- [ ] Kayıt kartlarında gereksiz bilgi kalabalığı yok.
 
-## 10. Quick Reference - Kopyala/Yapıştır
+## Öncelikli ekran sırası
 
-### 10.1 Standart Input
-```tsx
-<div className="space-y-2">
-  <Label className="text-sm font-medium">
-    Label <span className="text-destructive">*</span>
-  </Label>
-  <Input 
-    className="w-full bg-white border-input h-8"
-    placeholder="Placeholder..."
-  />
-</div>
-```
-
-### 10.2 Standart Select
-```tsx
-<div className="space-y-2">
-  <Label className="text-sm font-medium">Label</Label>
-  <UnifiedSelect
-    value={value}
-    onChange={onChange}
-    items={items}
-    placeholder="Seçiniz"
-    className="w-full"
-  />
-</div>
-```
-
-### 10.3 Standart Buton Group
-```tsx
-<div className="flex items-center gap-2">
-  {/* Segmented group */}
-  <div className="flex">
-    <Button variant="outline" className="h-8 rounded-l-md rounded-r-none border-r-0">
-      Buton 1
-    </Button>
-    <Button variant="outline" className="h-8 rounded-none border-r-0">
-      Buton 2
-    </Button>
-    <Button variant="outline" className="h-8 rounded-r-md rounded-l-none">
-      Buton 3
-    </Button>
-  </div>
-  
-  {/* Ayırıcı */}
-  <div className="w-px h-6 bg-border mx-2" />
-  
-  {/* Aksiyon butonları */}
-  <Button variant="outline" className="h-8">İptal</Button>
-  <Button className="h-8 px-4">Kaydet</Button>
-</div>
-```
-
-### 10.4 RadioGroup
-```tsx
-<div className="space-y-2">
-  <Label className="text-sm font-medium">Label</Label>
-  <RadioGroup
-    items={items}
-    value={value}
-    onChange={onChange}
-  />
-</div>
-```
-
----
-
-## 11. Kontrol Listesi (Code Review)
-
-Yeni sayfa/form geliştirirken kontrol edilecekler:
-
-- [ ] Tüm inputlar `h-8` yüksekliğinde mi?
-- [ ] Tüm inputlar `bg-white` arka plana sahip mi?
-- [ ] Butonlar `h-8` yüksekliğinde mi?
-- [ ] Segmented buton grupları doğru border-radius kullanıyor mu?
-- [ ] Label'lar `text-sm font-medium` stilinde mi?
-- [ ] Placeholder'lar tutarlı mı ("Seçiniz" vs "Seç")?
-- [ ] Zorunlu alanlar `*` işaretçisi ile belirtilmiş mi?
-- [ ] Zorunlu alan işaretçileri `text-destructive` renginde mi?
-- [ ] Form elementleri arası `space-y-2`/`space-y-4` kullanılıyor mu?
-- [ ] Grid yapıları `gap-3` veya `gap-6` kullanıyor mu?
-
----
-
-**Son Güncelleme:** 26 Nisan 2026
-**Versiyon:** 1.0
+1. Login
+2. App shell + mobil bottom nav
+3. Ana Sayfa
+4. Dosyalar birleşik liste
+5. Dosya detay
+6. Ajanda liste
+7. Finans
+8. Belgeler
+9. Müvekkiller
+10. Yönetim
