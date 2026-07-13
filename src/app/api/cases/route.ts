@@ -34,11 +34,16 @@ export async function POST(request: NextRequest) {
   }
 
   const service = createServiceRoleSupabaseClient()
+  const { data: fileCode, error: codeError } = await service.rpc('next_file_code', { file_prefix: 'DVA' })
+  if (codeError || !fileCode) {
+    return NextResponse.json({ error: codeError?.message || 'Dava dosya numarası üretilemedi' }, { status: 500 })
+  }
+
   const { data, error } = await service
     .from('case_files')
     .insert({
       ...toCaseFilePayload(parsed.data),
-      file_code: '',
+      file_code: fileCode,
       created_by: auth.user.id,
     })
     .select('*')

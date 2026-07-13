@@ -28,11 +28,16 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: getFirstZodError(parsed.error) }, { status: 400 })
 
   const service = createServiceRoleSupabaseClient()
+  const { data: fileCode, error: codeError } = await service.rpc('next_file_code', { file_prefix: 'ICR' })
+  if (codeError || !fileCode) {
+    return NextResponse.json({ error: codeError?.message || 'İcra dosya numarası üretilemedi' }, { status: 500 })
+  }
+
   const { data, error } = await service
     .from('enforcement_files')
     .insert({
       ...toEnforcementFilePayload(parsed.data),
-      file_code: '',
+      file_code: fileCode,
       created_by: auth.user.id,
     })
     .select('*')
