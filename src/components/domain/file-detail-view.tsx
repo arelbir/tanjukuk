@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { ArrowLeft, Landmark, UserRound, WalletCards } from 'lucide-react'
 import { AgendaItemCard, DocumentCard, FinanceCard } from '@/components/domain/cards'
+import { FileArchiveButton } from '@/components/domain/file-archive-button'
 import { agenda, documents, financeItems, type files } from '@/components/domain/demo-data'
 import { SegmentedControl } from '@/components/primitives'
 import { Badge } from '@/components/ui/badge'
@@ -28,7 +29,10 @@ export function FileDetailView({ file }: FileDetailViewProps) {
           <ArrowLeft className="size-4" />
           Geri
         </Button>
-        <Link href="/files" className="text-sm font-medium text-primary hover:underline">Tüm dosyalar</Link>
+        <div className="flex items-center gap-2">
+          <FileArchiveButton id={file.id} type={file.type} label={file.code} redirectTo="/files" />
+          <Link href="/files" className="text-sm font-medium text-primary hover:underline">Tüm dosyalar</Link>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">

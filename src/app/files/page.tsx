@@ -3,6 +3,7 @@ import { SlidersHorizontal } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { FileArchiveButton } from '@/components/domain/file-archive-button'
 import { FileCreateButton, type FileCreateOption } from '@/components/domain/file-create-button'
 import { requirePageContext } from '@/lib/auth/page'
 import { listCaseFiles } from '@/features/cases/repository'
@@ -128,7 +129,10 @@ export default async function FilesPage({ searchParams }: { searchParams?: Promi
                   </div>
                   <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">{file.type === 'case' ? 'Dava' : 'İcra'}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">{file.counterparty} · {file.status}</p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted-foreground">{file.counterparty} · {file.status}</p>
+                  <FileArchiveButton id={file.id} type={file.type} label={file.title} />
+                </div>
               </Card>
             ))}
           </div>
