@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Briefcase, FolderPlus, Landmark } from 'lucide-react'
+import { Briefcase, FolderPlus, Landmark, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogCloseButton, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { SelectField } from '@/components/primitives/select-field'
 import { SegmentedControl } from '@/components/primitives/segmented-control'
 
@@ -30,6 +30,90 @@ interface FileCreateButtonProps {
 }
 
 type FileKind = 'case' | 'enforcement'
+
+const TURKISH_CITY_OPTIONS: FileCreateOption[] = [
+  'Adana',
+  'Adıyaman',
+  'Afyonkarahisar',
+  'Ağrı',
+  'Aksaray',
+  'Amasya',
+  'Ankara',
+  'Antalya',
+  'Ardahan',
+  'Artvin',
+  'Aydın',
+  'Balıkesir',
+  'Bartın',
+  'Batman',
+  'Bayburt',
+  'Bilecik',
+  'Bingöl',
+  'Bitlis',
+  'Bolu',
+  'Burdur',
+  'Bursa',
+  'Çanakkale',
+  'Çankırı',
+  'Çorum',
+  'Denizli',
+  'Diyarbakır',
+  'Düzce',
+  'Edirne',
+  'Elazığ',
+  'Erzincan',
+  'Erzurum',
+  'Eskişehir',
+  'Gaziantep',
+  'Giresun',
+  'Gümüşhane',
+  'Hakkâri',
+  'Hatay',
+  'Iğdır',
+  'Isparta',
+  'İstanbul',
+  'İzmir',
+  'Kahramanmaraş',
+  'Karabük',
+  'Karaman',
+  'Kars',
+  'Kastamonu',
+  'Kayseri',
+  'Kırıkkale',
+  'Kırklareli',
+  'Kırşehir',
+  'Kilis',
+  'Kocaeli',
+  'Konya',
+  'Kütahya',
+  'Malatya',
+  'Manisa',
+  'Mardin',
+  'Mersin',
+  'Muğla',
+  'Muş',
+  'Nevşehir',
+  'Niğde',
+  'Ordu',
+  'Osmaniye',
+  'Rize',
+  'Sakarya',
+  'Samsun',
+  'Siirt',
+  'Sinop',
+  'Sivas',
+  'Şanlıurfa',
+  'Şırnak',
+  'Tekirdağ',
+  'Tokat',
+  'Trabzon',
+  'Tunceli',
+  'Uşak',
+  'Van',
+  'Yalova',
+  'Yozgat',
+  'Zonguldak',
+].map((city) => ({ value: city, label: city }))
 
 function today() {
   return new Date().toISOString().slice(0, 10)
@@ -84,6 +168,11 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
     setAmount('')
     setDescription('')
     setError(null)
+  }
+
+  function closeDrawer() {
+    setOpen(false)
+    reset()
   }
 
   async function submit() {
@@ -156,20 +245,24 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
   }
 
   return (
-    <>
+    <Drawer open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (!nextOpen) reset() }} direction="right">
       <Button onClick={() => setOpen(true)}>
         <FolderPlus className="size-4" />
         Dosya aç
       </Button>
 
-      <Dialog open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (!nextOpen) reset() }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogCloseButton onClick={() => setOpen(false)} />
-          <DialogHeader>
-            <DialogTitle>Yeni dosya aç</DialogTitle>
-            <DialogDescription>Dava veya icra dosyasını temel bilgilerle hızlıca oluşturun. Detayları dosya ekranından tamamlayabilirsiniz.</DialogDescription>
-          </DialogHeader>
+      <DrawerContent className="w-full sm:max-w-xl lg:max-w-2xl">
+        <DrawerHeader className="flex items-start justify-between gap-3">
+          <div>
+            <DrawerTitle>Yeni dosya aç</DrawerTitle>
+            <DrawerDescription>Dava veya icra dosyasını temel bilgilerle oluşturun. Detayları dosya ekranından tamamlayabilirsiniz.</DrawerDescription>
+          </div>
+          <Button variant="ghost" size="icon" onClick={closeDrawer} aria-label="Kapat">
+            <X className="size-4" />
+          </Button>
+        </DrawerHeader>
 
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-4">
             <SegmentedControl<FileKind>
               value={kind}
@@ -217,7 +310,7 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Mahkeme ili</p>
-                    <Input value={courtCity} onChange={(event) => setCourtCity(event.target.value)} placeholder="İstanbul" />
+                    <SelectField value={courtCity} onChange={setCourtCity} options={TURKISH_CITY_OPTIONS} placeholder="İl seçin" />
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Mahkeme / esas bilgisi</p>
@@ -250,7 +343,7 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium">İcra ili</p>
-                    <Input value={officeCity} onChange={(event) => setOfficeCity(event.target.value)} placeholder="İstanbul" />
+                    <SelectField value={officeCity} onChange={setOfficeCity} options={TURKISH_CITY_OPTIONS} placeholder="İl seçin" />
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium">İcra dairesi</p>
@@ -278,13 +371,15 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
 
             {error ? <div className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div> : null}
           </div>
+        </div>
 
-          <div className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>Vazgeç</Button>
+        <DrawerFooter>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={closeDrawer} disabled={busy}>Vazgeç</Button>
             <Button onClick={submit} disabled={busy || submitDisabled}>{kind === 'case' ? 'Dava dosyası aç' : 'İcra dosyası aç'}</Button>
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   )
 }
