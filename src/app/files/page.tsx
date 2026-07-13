@@ -3,17 +3,48 @@ import { SlidersHorizontal } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { FileCreateButton, type FileCreateOption } from '@/components/domain/file-create-button'
 import { requirePageContext } from '@/lib/auth/page'
 import { listCaseFiles } from '@/features/cases/repository'
 import { listEnforcementFiles } from '@/features/enforcements/repository'
 
+function toOptions(rows: Array<{ id: string; label?: string | null; name?: string | null; full_name?: string | null; email?: string | null; client_code?: string | null }>): FileCreateOption[] {
+  return rows.map((row) => ({
+    value: row.id,
+    label: row.label || row.full_name || row.name || row.email || row.id,
+  }))
+}
+
 export default async function FilesPage({ searchParams }: { searchParams?: Promise<{ q?: string; type?: string }> }) {
   const params = searchParams ? await searchParams : {}
   const { supabase, user, unreadCount } = await requirePageContext()
-  const [cases, enforcements] = await Promise.all([
+  const [cases, enforcements, clientsResult, lawyersResult, lookupsResult] = await Promise.all([
     listCaseFiles(supabase, { search: params.q, archive: 'active', pageSize: 50 }),
     listEnforcementFiles(supabase, { search: params.q, archive: 'active', pageSize: 50 }),
+    supabase.from('clients').select('id, name, client_code').eq('is_active', true).order('name'),
+    supabase.from('profiles').select('id, full_name, email').eq('is_active', true).order('full_name'),
+    supabase
+      .from('lookup_values')
+      .select('id, group_key, label')
+      .in('group_key', ['case_type', 'case_status', 'client_role', 'enforcement_type', 'enforcement_status'])
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true }),
   ])
+
+  if (clientsResult.error) throw clientsResult.error
+  if (lawyersResult.error) throw lawyersResult.error
+  if (lookupsResult.error) throw lookupsResult.error
+
+  const lookups = lookupsResult.data || []
+  const fileCreateOptions = {
+    clients: (clientsResult.data || []).map((client) => ({ value: client.id, label: client.client_code ? `${client.name} (${client.client_code})` : client.name })),
+    lawyers: toOptions(lawyersResult.data || []),
+    caseTypes: toOptions(lookups.filter((item) => item.group_key === 'case_type')),
+    caseStatuses: toOptions(lookups.filter((item) => item.group_key === 'case_status')),
+    clientRoles: toOptions(lookups.filter((item) => item.group_key === 'client_role')),
+    enforcementTypes: toOptions(lookups.filter((item) => item.group_key === 'enforcement_type')),
+    enforcementStatuses: toOptions(lookups.filter((item) => item.group_key === 'enforcement_status')),
+  }
 
   const files = [
     ...(params.type === 'enforcement' ? [] : cases.items.map((item) => ({ id: item.id, type: 'case' as const, code: item.file_code, client: item.client?.name || 'Müvekkil yok', counterparty: item.opposing_party || 'Karşı taraf yok', status: item.status?.label || 'Durum yok', href: `/files/case/${item.id}` }))),
@@ -23,6 +54,14 @@ export default async function FilesPage({ searchParams }: { searchParams?: Promi
   return (
     <AppShell user={user} unreadCount={unreadCount}>
       <div className="space-y-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Dosyalar</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Dava ve icra dosyalarını görüntüleyin veya yeni dosya açın.</p>
+          </div>
+          <FileCreateButton options={fileCreateOptions} />
+        </div>
+
         <div className="flex gap-2">
           <form action="/files" className="flex-1">
             <input
