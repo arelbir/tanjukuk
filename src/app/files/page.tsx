@@ -7,6 +7,7 @@ import { FileCreateButton, type FileCreateOption } from '@/components/domain/fil
 import { requirePageContext } from '@/lib/auth/page'
 import { listCaseFiles } from '@/features/cases/repository'
 import { listEnforcementFiles } from '@/features/enforcements/repository'
+import { formatCaseUyapFileName, formatEnforcementUyapFileName } from '@/lib/uyap-file-name'
 
 function toOptions(rows: Array<{ id: string; label?: string | null; name?: string | null; full_name?: string | null; email?: string | null; client_code?: string | null }>): FileCreateOption[] {
   return rows.map((row) => ({
@@ -26,7 +27,7 @@ export default async function FilesPage({ searchParams }: { searchParams?: Promi
     supabase
       .from('lookup_values')
       .select('id, group_key, label')
-      .in('group_key', ['case_type', 'case_status', 'client_role', 'enforcement_type', 'enforcement_status'])
+      .in('group_key', ['case_type', 'case_status', 'client_role', 'court_type', 'enforcement_type', 'enforcement_status'])
       .eq('is_active', true)
       .order('sort_order', { ascending: true }),
   ])
@@ -42,13 +43,56 @@ export default async function FilesPage({ searchParams }: { searchParams?: Promi
     caseTypes: toOptions(lookups.filter((item) => item.group_key === 'case_type')),
     caseStatuses: toOptions(lookups.filter((item) => item.group_key === 'case_status')),
     clientRoles: toOptions(lookups.filter((item) => item.group_key === 'client_role')),
+    courtTypes: toOptions(lookups.filter((item) => item.group_key === 'court_type')),
     enforcementTypes: toOptions(lookups.filter((item) => item.group_key === 'enforcement_type')),
     enforcementStatuses: toOptions(lookups.filter((item) => item.group_key === 'enforcement_status')),
   }
 
   const files = [
-    ...(params.type === 'enforcement' ? [] : cases.items.map((item) => ({ id: item.id, type: 'case' as const, code: item.file_code, client: item.client?.name || 'Müvekkil yok', counterparty: item.opposing_party || 'Karşı taraf yok', status: item.status?.label || 'Durum yok', href: `/files/case/${item.id}` }))),
-    ...(params.type === 'case' ? [] : enforcements.items.map((item) => ({ id: item.id, type: 'enforcement' as const, code: item.file_code, client: item.client?.name || 'Müvekkil yok', counterparty: item.debtor_party || 'Borçlu yok', status: item.status?.label || 'Durum yok', href: `/files/enforcement/${item.id}` }))),
+    ...(params.type === 'enforcement'
+      ? []
+      : cases.items.map((item) => {
+          const uyapName = formatCaseUyapFileName({
+            courtCity: item.court_city,
+            courtDistrict: item.court_district,
+            courtNo: item.court_no,
+            courtType: item.court_type?.label,
+            fileYear: item.file_year,
+            fileNo: item.file_no,
+            uyapFileKind: item.uyap_file_kind,
+          })
+          return {
+            id: item.id,
+            type: 'case' as const,
+            code: item.file_code,
+            title: uyapName || item.file_code,
+            client: item.client?.name || 'Müvekkil yok',
+            counterparty: item.opposing_party || 'Karşı taraf yok',
+            status: item.status?.label || 'Durum yok',
+            href: `/files/case/${item.id}`,
+          }
+        })),
+    ...(params.type === 'case'
+      ? []
+      : enforcements.items.map((item) => {
+          const uyapName = formatEnforcementUyapFileName({
+            officeCity: item.office_city,
+            enforcementOffice: item.enforcement_office,
+            fileYear: item.file_year,
+            fileNo: item.file_no,
+            uyapFileKind: item.uyap_file_kind,
+          })
+          return {
+            id: item.id,
+            type: 'enforcement' as const,
+            code: item.file_code,
+            title: uyapName || item.file_code,
+            client: item.client?.name || 'Müvekkil yok',
+            counterparty: item.debtor_party || 'Borçlu yok',
+            status: item.status?.label || 'Durum yok',
+            href: `/files/enforcement/${item.id}`,
+          }
+        })),
   ]
 
   return (
@@ -79,8 +123,8 @@ export default async function FilesPage({ searchParams }: { searchParams?: Promi
               <Card key={`${file.type}-${file.id}`} className="space-y-2 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Link href={file.href} className="font-semibold text-primary hover:underline">{file.code}</Link>
-                    <p className="mt-1 truncate text-sm text-muted-foreground">{file.client}</p>
+                    <Link href={file.href} className="font-semibold text-primary hover:underline">{file.title}</Link>
+                    <p className="mt-1 truncate text-sm text-muted-foreground">{file.code} · {file.client}</p>
                   </div>
                   <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">{file.type === 'case' ? 'Dava' : 'İcra'}</span>
                 </div>

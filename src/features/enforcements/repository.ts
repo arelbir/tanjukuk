@@ -169,6 +169,7 @@ export function toEnforcementFilePayload(values: EnforcementFileFormValues) {
     enforcement_office: values.enforcement_office.trim() || null,
     file_year: values.file_year ? Number(values.file_year) : null,
     file_no: values.file_no.trim() || null,
+    uyap_file_kind: values.uyap_file_kind || 'E',
     opened_at: values.opened_at || null,
     principal_amount: principal,
     interest_amount: interest,

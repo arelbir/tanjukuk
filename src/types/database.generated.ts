@@ -209,6 +209,7 @@ export type Database = {
           opposing_party: string | null
           status_id: string | null
           updated_at: string
+          uyap_file_kind: string
           verdict_against: number | null
           verdict_for: number | null
           verdict_result: string | null
@@ -241,6 +242,7 @@ export type Database = {
           opposing_party?: string | null
           status_id?: string | null
           updated_at?: string
+          uyap_file_kind?: string
           verdict_against?: number | null
           verdict_for?: number | null
           verdict_result?: string | null
@@ -273,6 +275,7 @@ export type Database = {
           opposing_party?: string | null
           status_id?: string | null
           updated_at?: string
+          uyap_file_kind?: string
           verdict_against?: number | null
           verdict_for?: number | null
           verdict_result?: string | null
@@ -564,6 +567,7 @@ export type Database = {
           status_id: string | null
           total_amount: number
           updated_at: string
+          uyap_file_kind: string
         }
         Insert: {
           archived_at?: string | null
@@ -595,6 +599,7 @@ export type Database = {
           status_id?: string | null
           total_amount?: number
           updated_at?: string
+          uyap_file_kind?: string
         }
         Update: {
           archived_at?: string | null
@@ -626,6 +631,7 @@ export type Database = {
           status_id?: string | null
           total_amount?: number
           updated_at?: string
+          uyap_file_kind?: string
         }
         Relationships: [
           {

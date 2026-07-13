@@ -73,6 +73,7 @@ export interface EnforcementFileFormValues {
   enforcement_office: string
   file_year: string
   file_no: string
+  uyap_file_kind: string
   opened_at: string
   principal_amount: string
   interest_amount: string

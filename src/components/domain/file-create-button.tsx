@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { SelectField } from '@/components/primitives/select-field'
 import { SegmentedControl } from '@/components/primitives/segmented-control'
+import { UYAP_FILE_KIND_OPTIONS } from '@/lib/uyap-file-name'
 
 export interface FileCreateOption {
   value: string
@@ -21,6 +22,7 @@ export interface FileCreateOptions {
   caseTypes: FileCreateOption[]
   caseStatuses: FileCreateOption[]
   clientRoles: FileCreateOption[]
+  courtTypes: FileCreateOption[]
   enforcementTypes: FileCreateOption[]
   enforcementStatuses: FileCreateOption[]
 }
@@ -133,6 +135,11 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
   const [clientPosition, setClientPosition] = useState('creditor')
   const [caseTypeId, setCaseTypeId] = useState('')
   const [caseStatusId, setCaseStatusId] = useState('')
+  const [courtDistrict, setCourtDistrict] = useState('')
+  const [courtTypeId, setCourtTypeId] = useState('')
+  const [fileYear, setFileYear] = useState(new Date().getFullYear().toString())
+  const [fileNo, setFileNo] = useState('')
+  const [uyapFileKind, setUyapFileKind] = useState('E')
   const [enforcementTypeId, setEnforcementTypeId] = useState('')
   const [enforcementStatusId, setEnforcementStatusId] = useState('')
   const [courtCity, setCourtCity] = useState('')
@@ -158,6 +165,11 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
     setClientPosition('creditor')
     setCaseTypeId('')
     setCaseStatusId('')
+    setCourtDistrict('')
+    setCourtTypeId('')
+    setFileYear(new Date().getFullYear().toString())
+    setFileNo('')
+    setUyapFileKind('E')
     setEnforcementTypeId('')
     setEnforcementStatusId('')
     setCourtCity('')
@@ -189,11 +201,12 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
           case_type_id: caseTypeId,
           status_id: caseStatusId,
           court_city: courtCity,
-          court_district: '',
-          court_type_id: '',
+          court_district: courtDistrict,
+          court_type_id: courtTypeId,
           court_no: courtNo,
-          file_year: '',
-          file_no: '',
+          file_year: fileYear,
+          file_no: fileNo,
+          uyap_file_kind: uyapFileKind,
           opened_at: openedAt,
           case_value: amount,
           currency: 'TRY',
@@ -209,8 +222,9 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
           status_id: enforcementStatusId,
           office_city: officeCity,
           enforcement_office: enforcementOffice,
-          file_year: '',
-          file_no: '',
+          file_year: fileYear,
+          file_no: fileNo,
+          uyap_file_kind: uyapFileKind,
           opened_at: openedAt,
           principal_amount: amount,
           interest_amount: '',
@@ -313,8 +327,28 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
                     <SelectField value={courtCity} onChange={setCourtCity} options={TURKISH_CITY_OPTIONS} placeholder="İl seçin" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Mahkeme / esas bilgisi</p>
-                    <Input value={courtNo} onChange={(event) => setCourtNo(event.target.value)} placeholder="4. Asliye Ticaret" />
+                    <p className="text-sm font-medium">Adliye / yargı çevresi</p>
+                    <Input value={courtDistrict} onChange={(event) => setCourtDistrict(event.target.value)} placeholder="İstanbul Anadolu" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Mahkeme türü</p>
+                    <SelectField value={courtTypeId} onChange={setCourtTypeId} options={options.courtTypes} placeholder="Mahkeme türü seçin" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Mahkeme no</p>
+                    <Input value={courtNo} onChange={(event) => setCourtNo(event.target.value)} inputMode="numeric" placeholder="8" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">UYAP dosya yılı</p>
+                    <Input value={fileYear} onChange={(event) => setFileYear(event.target.value)} inputMode="numeric" placeholder="2026" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">UYAP dosya no</p>
+                    <Input value={fileNo} onChange={(event) => setFileNo(event.target.value)} inputMode="numeric" placeholder="123" />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <p className="text-sm font-medium">UYAP sıra türü</p>
+                    <SelectField value={uyapFileKind} onChange={setUyapFileKind} options={UYAP_FILE_KIND_OPTIONS} />
                   </div>
                 </div>
               </div>
@@ -348,6 +382,18 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
                   <div className="space-y-1">
                     <p className="text-sm font-medium">İcra dairesi</p>
                     <Input value={enforcementOffice} onChange={(event) => setEnforcementOffice(event.target.value)} placeholder="Bakırköy 7. İcra Dairesi" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">UYAP dosya yılı</p>
+                    <Input value={fileYear} onChange={(event) => setFileYear(event.target.value)} inputMode="numeric" placeholder="2026" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">UYAP dosya no</p>
+                    <Input value={fileNo} onChange={(event) => setFileNo(event.target.value)} inputMode="numeric" placeholder="456" />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <p className="text-sm font-medium">UYAP sıra türü</p>
+                    <SelectField value={uyapFileKind} onChange={setUyapFileKind} options={UYAP_FILE_KIND_OPTIONS} />
                   </div>
                 </div>
               </div>

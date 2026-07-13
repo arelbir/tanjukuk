@@ -224,6 +224,7 @@ export function toCaseFilePayload(values: CaseFileFormValues) {
     court_no: values.court_no.trim() || null,
     file_year: values.file_year ? Number(values.file_year) : null,
     file_no: values.file_no.trim() || null,
+    uyap_file_kind: values.uyap_file_kind || 'E',
     case_type_id: values.case_type_id || null,
     status_id: values.status_id || null,
     opened_at: values.opened_at || null,

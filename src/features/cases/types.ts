@@ -76,6 +76,7 @@ export interface CaseFileFormValues {
   court_no: string
   file_year: string
   file_no: string
+  uyap_file_kind: string
   case_type_id: string
   status_id: string
   opened_at: string
