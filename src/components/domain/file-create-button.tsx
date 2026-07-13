@@ -150,6 +150,14 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
 
+  const courtTypeOptions = useMemo(
+    () => options.courtTypes.map((option) => ({
+      ...option,
+      label: option.label.includes('İcra Hukuk') ? `${option.label} (mahkeme)` : option.label,
+    })),
+    [options.courtTypes]
+  )
+
   const submitDisabled = useMemo(() => {
     if (!clientId) return true
     if (kind === 'case') return opposingParty.trim().length < 2
@@ -282,8 +290,8 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
               value={kind}
               onChange={setKind}
               options={[
-                { value: 'case', label: 'Dava dosyası' },
-                { value: 'enforcement', label: 'İcra dosyası' },
+                { value: 'case', label: 'Mahkeme / dava dosyası' },
+                { value: 'enforcement', label: 'İcra takibi' },
               ]}
               ariaLabel="Dosya türü"
             />
@@ -303,7 +311,7 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
               <div className="space-y-4 rounded-2xl border border-border p-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <Briefcase className="size-4 text-primary" />
-                  Dava bilgileri
+                  Mahkeme / dava bilgileri
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
@@ -332,7 +340,8 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Mahkeme türü</p>
-                    <SelectField value={courtTypeId} onChange={setCourtTypeId} options={options.courtTypes} placeholder="Mahkeme türü seçin" />
+                    <SelectField value={courtTypeId} onChange={setCourtTypeId} options={courtTypeOptions} placeholder="Mahkeme türü seçin" />
+                    <p className="text-xs leading-5 text-muted-foreground">İcra Hukuk Mahkemesi, icra dairesi değil; icra işlemlerine ilişkin şikayet/itiraz yargılaması içindir.</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Mahkeme no</p>
@@ -346,17 +355,14 @@ export function FileCreateButton({ options }: FileCreateButtonProps) {
                     <p className="text-sm font-medium">UYAP dosya no</p>
                     <Input value={fileNo} onChange={(event) => setFileNo(event.target.value)} inputMode="numeric" placeholder="123" />
                   </div>
-                  <div className="space-y-1 sm:col-span-2">
-                    <p className="text-sm font-medium">UYAP sıra türü</p>
-                    <SelectField value={uyapFileKind} onChange={setUyapFileKind} options={UYAP_FILE_KIND_OPTIONS} />
-                  </div>
+
                 </div>
               </div>
             ) : (
               <div className="space-y-4 rounded-2xl border border-border p-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <Landmark className="size-4 text-primary" />
-                  İcra bilgileri
+                  İcra takibi bilgileri
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
